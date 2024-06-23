@@ -9,7 +9,7 @@ option(USE_LLD "Use lld instead of ld for linking" OFF)
 option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
 option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
-option(ENABLE_ASAN "Compile with AddressSanitizer" ON)
+option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
 
 # configure accordingly to options
 if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
