@@ -18,6 +18,8 @@ class b_tree {
     b_tree(const b_tree&);
 
     ~b_tree();
+
+  private:
     class node {
       public:
         node();
@@ -39,8 +41,6 @@ class b_tree {
         int data;
     };
 
-
-  private:
     node root;
     /**
      * @brief How many nodes are inside the tree
