@@ -1,0 +1,16 @@
+---
+Checks:          '*,-abseil-*,-altera-*,-android-*,-darwin-*,-fuchsia-*,-google-*,-linuxkernel-*,-llvm*,-zircon-*'
+WarningsAsErrors: '*'
+HeaderFileExtensions:
+  - h
+  - hh
+  - hpp
+  - hxx
+ImplementationFileExtensions:
+  - c
+  - cc
+  - cpp
+  - cxx
+HeaderFilterRegex: ''
+FormatStyle:     none
+
