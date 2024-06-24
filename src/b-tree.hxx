@@ -1,51 +1,55 @@
 #ifndef B_TREE_PROTO_H
 #define B_TREE_PROTO_H
 
+#include <array>
+#include <concepts>
 #include <cstddef>
 #include <memory>
+#include <optional>
 
-class b_tree {
+template <typename T>
+concept num = requires(T val) { std::equality_comparable<T>; };
+
+namespace my_b_tree {
+template <typename T> class node {
   public:
-    // use 5 for simplicity
     static constexpr size_t MAX_KEYS = 5;
+    static constexpr size_t MAX_CHILDREN = MAX_KEYS + 1;
 
-    b_tree();
+    node<T>() = default;
 
-    b_tree(b_tree&&) noexcept;
-    auto operator=(b_tree&&) noexcept -> b_tree&;
+    node<T>(node<T>&& to_move) = default;
+    auto operator=(node<T>&& to_move) -> node<T>& = default;
 
-    auto operator=(const b_tree&) -> b_tree&;
-    b_tree(const b_tree&);
+    node<T>(const node<T>& to_copy) = default;
+    auto operator=(const node<T>& to_copy) -> node<T>& = default;
 
-    ~b_tree();
+    ~node<T>() = default;
+
+    auto is_leaf() -> bool { return this->n_keys == 0; }
 
   private:
-    class node {
-      public:
-        node();
+    size_t n_keys = 0;
+    std::array<T, MAX_KEYS> keys{};
+    std::array<std::shared_ptr<node<T>>, MAX_CHILDREN> children{};
 
-        auto operator=(node&&) noexcept -> node&;
-        node(node&&) noexcept;
+    auto find_(node<T>* curr, T val) -> std::optional<std::weak_ptr<node<T>>> {
+        int pos = 0;
 
-        auto operator=(const node&) -> node&;
-        node(const node&);
+        for(; pos < curr->n_keys && val > curr->keys[pos]; ++pos) {
+        }
 
-        ~node();
+        if(pos < curr->n_keys && val == curr->keys[pos]){
+            return curr;
+        }
 
-      private:
-        /**
-         * @brief The children of this node
-         */
-        std::array<std::unique_ptr<node>, MAX_KEYS> children;
-        // use int instead of template for simplicity
-        int data;
-    };
+        if(curr->is_leaf()){
+            return std::nullopt;
+        }
 
-    node root;
-    /**
-     * @brief How many nodes are inside the tree
-     */
-    size_t count;
+        return find_(curr->children[pos], val);
+    }
 };
+} // namespace my_b_tree
 
 #endif // !B_TREE_PROTO_H
