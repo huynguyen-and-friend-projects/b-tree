@@ -10,6 +10,8 @@ if(NOT GTEST)
     FetchContent_MakeAvailable(GTEST)
 endif()
 
+include(GoogleTest)
+
 add_executable(test-exe test-b-tree.cxx)
 target_link_libraries(test-exe PRIVATE b-tree compile-opts GTest::gtest_main)
 if(ENABLE_ASAN)
@@ -21,6 +23,7 @@ endif()
 add_custom_command(
     TARGET test-exe
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:test-exe>"
+    COMMAND ln -sf "$<TARGET_FILE:test-exe>"
             "${PROJECT_SOURCE_DIR}/$<TARGET_FILE_NAME:test-exe>"
-    COMMENT "Copy the built executable to project root")
+    COMMENT "Symlink the built executable to project root")
+gtest_discover_tests(test-exe)
