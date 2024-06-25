@@ -38,8 +38,9 @@ if(ENABLE_WARNING)
     if(MSVC)
         target_compile_options(compile-opts INTERFACE "/W4")
     else(MSVC)
-        target_compile_options(compile-opts
-                               INTERFACE "-Wall;-Wextra;-Wformat=2")
+        target_compile_options(
+            compile-opts
+            INTERFACE "-Wall;-Wextra;-Wformat=2;-fdiagnostics-color=always")
     endif()
 endif()
 
