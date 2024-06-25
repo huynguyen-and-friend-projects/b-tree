@@ -19,11 +19,4 @@ if(ENABLE_ASAN)
     # option.
     target_link_libraries(test-exe PRIVATE asan)
 endif()
-# pull the executable to project root
-add_custom_command(
-    TARGET test-exe
-    POST_BUILD
-    COMMAND ln -sf "$<TARGET_FILE:test-exe>"
-            "${PROJECT_SOURCE_DIR}/$<TARGET_FILE_NAME:test-exe>"
-    COMMENT "Symlink the built executable to project root")
 gtest_discover_tests(test-exe)
