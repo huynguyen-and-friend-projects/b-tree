@@ -23,8 +23,8 @@ template <Num T> class node {
     node(node&& to_move) = delete;
     auto operator=(node&& to_move) -> node<T>& = delete;
 
-    node(const node& to_copy) = default;
-    auto operator=(const node& to_copy) -> node<T>& = default;
+    node(const node& to_copy) = delete;
+    auto operator=(const node& to_copy) -> node<T>& = delete;
 
     ~node() = default;
 
@@ -57,21 +57,21 @@ template <Num T> class node {
 
     static auto find_(std::reference_wrapper<node<T>> curr_ref,
                       T val) -> std::optional<std::reference_wrapper<node<T>>> {
-        node<T> curr = curr_ref.get();
+        node<T>* curr = &curr_ref.get();
         size_t pos = 0;
 
-        for (; pos < curr.n_keys && val > curr.keys[pos]; ++pos) {
+        for (; pos < curr->n_keys && val > curr->keys[pos]; ++pos) {
         }
 
-        if (pos < curr.n_keys && val == curr.keys[pos]) {
+        if (pos < curr->n_keys && val == curr->keys[pos]) {
             return curr_ref;
         }
 
-        if (curr.is_leaf() || !curr.children[pos].has_value()) {
+        if (curr->is_leaf() || !curr->children[pos].has_value()) {
             return std::nullopt;
         }
 
-        return find_(*curr.children[pos].value().get(), val);
+        return find_(*curr->children[pos].value().get(), val);
     }
 };
 } // namespace my_b_tree
