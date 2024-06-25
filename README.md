@@ -31,10 +31,11 @@ cmake [options] ..
 # -DCMAKE_EXPORT_COMPILE_COMMANDS=ON (export a compile_commands.json file)
 # -DUSE_LLD=OFF (use lld instead of the default linker)
 # -DENABLE_TESTING=ON (create a test executable)
-# -DUSE_ASAN=OFF (use libasan to catch memory errors)
+# -DENABLE_ASAN=OFF (use libasan to catch memory errors)
 # -DENABLE_WARNING=ON (misleading name; enable extra warnings)
 # -DWARNINGS_AS_ERRORS=ON (turn all compiler warnings to errors)
 cmake --build .
 cd ..
-./test-exe # run test
+sh ./run-test.sh # run test
+# note, you can only run test if you enable testing (which, is enabled by default)
 ```
