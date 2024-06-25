@@ -23,8 +23,8 @@ template <Num T> class node {
     node(node&& to_move) = delete;
     auto operator=(node&& to_move) -> node<T>& = delete;
 
-    node(const node& to_copy) = delete;
-    auto operator=(const node& to_copy) -> node<T>& = delete;
+    node(const node& to_copy) = default;
+    auto operator=(const node& to_copy) -> node<T>& = default;
 
     ~node() = default;
 
