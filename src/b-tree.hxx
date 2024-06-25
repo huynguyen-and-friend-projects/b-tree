@@ -4,6 +4,7 @@
 #include <array>
 #include <concepts>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -39,12 +40,12 @@ template <Num T> class node {
      * node if found.
      *
      * @param val
-     * @return 
+     * @return
      */
-    auto find(T val) -> std::optional<node<T>*> {
-        auto ret = find_(this, val);
+    auto find(T val) -> std::optional<std::reference_wrapper<node<T>>> {
+        auto ret = find_(*this, val);
         if (ret.has_value()) {
-            return ret.value();
+            return (ret.value());
         }
         return std::nullopt;
     }
@@ -52,23 +53,25 @@ template <Num T> class node {
   private:
     size_t n_keys = 0;
     std::array<T, MAX_KEYS> keys{};
-    std::array<std::shared_ptr<node<T>>, MAX_CHILDREN> children{};
+    std::array<std::optional<std::shared_ptr<node<T>>>, MAX_CHILDREN> children{};
 
-    static auto find_(node<T>* curr, T val) -> std::optional<node*> {
+    static auto find_(std::reference_wrapper<node<T>> curr_ref,
+                      T val) -> std::optional<std::reference_wrapper<node<T>>> {
+        node<T> curr = curr_ref.get();
         size_t pos = 0;
 
-        for (; pos < curr->n_keys && val > curr->keys[pos]; ++pos) {
+        for (; pos < curr.n_keys && val > curr.keys[pos]; ++pos) {
         }
 
-        if (pos < curr->n_keys && val == curr->keys[pos]) {
-            return curr;
+        if (pos < curr.n_keys && val == curr.keys[pos]) {
+            return curr_ref;
         }
 
-        if (curr->is_leaf()) {
+        if (curr.is_leaf() || !curr.children[pos].has_value()) {
             return std::nullopt;
         }
 
-        return find_(curr->children[pos].get(), val);
+        return find_(*curr.children[pos].value().get(), val);
     }
 };
 } // namespace my_b_tree
