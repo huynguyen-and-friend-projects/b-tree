@@ -17,15 +17,15 @@ template <Num T> class node {
     static constexpr size_t MAX_KEYS = 5;
     static constexpr size_t MAX_CHILDREN = MAX_KEYS + 1;
 
-    node<T>() = default;
+    node() = default;
 
-    node<T>(node<T>&& to_move) = default;
-    auto operator=(node<T>&& to_move) -> node<T>& = default;
+    node(node&& to_move) = default;
+    auto operator=(node&& to_move) -> node<T>& = default;
 
-    node<T>(const node<T>& to_copy) = default;
-    auto operator=(const node<T>& to_copy) -> node<T>& = default;
+    node(const node& to_copy) = default;
+    auto operator=(const node& to_copy) -> node<T>& = default;
 
-    ~node<T>() = default;
+    ~node() = default;
 
     /**
      * @brief Whether this node has no children.

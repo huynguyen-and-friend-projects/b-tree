@@ -46,7 +46,7 @@ endif()
 
 if(WARNING_AS_ERROR)
     if(MSVC)
-        target_compile_options(compile-opts INTERFACE "/Werror")
+        target_compile_options(compile-opts INTERFACE "/WX")
     else(MSVC)
         target_compile_options(compile-opts INTERFACE "-Werror")
     endif()
