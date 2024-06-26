@@ -50,10 +50,13 @@ template <Num T> class node {
         return std::nullopt;
     }
 
+    auto contains(T val) -> bool { return find(val).has_value(); }
+
   private:
     size_t n_keys = 0;
     std::array<T, MAX_KEYS> keys{};
-    std::array<std::optional<std::shared_ptr<node<T>>>, MAX_CHILDREN> children{};
+    std::array<std::optional<std::shared_ptr<node<T>>>, MAX_CHILDREN>
+        children{};
 
     static auto find_(std::reference_wrapper<node<T>> curr_ref,
                       T val) -> std::optional<std::reference_wrapper<node<T>>> {
