@@ -65,6 +65,7 @@ class b_tree final {
     void remove(int val);
 
     friend struct node;
+
   private:
     /**
      * @class priv

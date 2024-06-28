@@ -19,6 +19,7 @@ class bt::node final {
     friend class bt::b_tree::priv;
 
   public:
+    explicit node(bt::node* parent) : parent(parent) {}
     /**
      * @brief Whether the current node has no children
      */
