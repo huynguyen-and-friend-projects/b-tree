@@ -1,3 +1,10 @@
+/**
+ * @file b-tree.cxx
+ * @brief Implementation of public functions defined in b-tree.hxx, alongside
+ * struct node, declaration and definition of private, non-virtual members of
+ * b_tree
+ */
+
 #include "b-tree.hxx"
 #include <optional>
 #include <vector>

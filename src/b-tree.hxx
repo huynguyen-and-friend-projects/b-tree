@@ -1,3 +1,8 @@
+/**
+ * @file b-tree.hxx
+ * @brief Declaration of public members/functions of b_tree
+ */
+
 #ifndef B_TREE_PROTO_H
 #define B_TREE_PROTO_H
 

@@ -1,3 +1,8 @@
+/**
+ * @file test-b-tree.cxx
+ * @brief Unit testing of b_tree
+ */
+
 #include "b-tree.hxx"
 #include <gtest/gtest.h>
 
