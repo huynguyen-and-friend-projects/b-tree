@@ -45,10 +45,12 @@ class bt::b_tree::priv final {
      * @brief The root of the b_tree. At the start, this is null.
      */
     std::unique_ptr<node> root{nullptr};
-    size_t degree;
+    size_t n_max_keys;
+    size_t n_min_keys;
 
   public:
-    explicit priv(size_t deg) : degree(deg) {}
+    explicit priv(size_t n_max_keys)
+        : n_max_keys(n_max_keys), n_min_keys(n_max_keys / 2) {}
     friend class bt::b_tree;
     auto find(int val) {}
 };
