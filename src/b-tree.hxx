@@ -1,82 +1,78 @@
 #ifndef B_TREE_PROTO_H
 #define B_TREE_PROTO_H
 
-#include <array>
-#include <concepts>
-#include <cstddef>
-#include <functional>
 #include <memory>
-#include <optional>
-
-template <typename T>
-concept Num =
-    std::integral<T> || std::floating_point<T> || std::equality_comparable<T>;
-
 namespace my_b_tree {
-template <Num T> class node {
+
+struct node;
+
+class b_tree final {
   public:
-    static constexpr size_t MAX_KEYS = 5;
-    static constexpr size_t MAX_CHILDREN = MAX_KEYS + 1;
-
-    node() = default;
-
-    node(node&& to_move) = delete;
-    auto operator=(node&& to_move) -> node<T>& = delete;
-
-    node(const node& to_copy) = delete;
-    auto operator=(const node& to_copy) -> node<T>& = delete;
-
-    ~node() = default;
+    explicit b_tree(size_t deg);
+    /**
+     * @brief Moves content of the current b_tree into the specified b_tree.
+     *
+     * Not recommended to use unless it is certain that the variable holding the
+     * current b_tree is no longer being used.
+     *
+     * @param move_to
+     */
+    b_tree(b_tree&& move_to) noexcept;
+    /**
+     * @brief Copies content of the current b_tree into the specified b_tree.
+     *
+     * This operation is VERY expensive, both memory-wise and processor-wise,
+     * especially if the b_tree is large. For most situations, use a reference.
+     * Only use this for back-up.
+     *
+     * @param copy_to
+     */
+    b_tree(const b_tree& copy_to);
+    /**
+     * @brief Moves content of the current b_tree into the specified b_tree.
+     *
+     * Not recommended to use unless it is certain that the variable holding the
+     * current b_tree is no longer being used.
+     *
+     * @param move_to
+     */
+    auto operator=(b_tree&& move_to) noexcept -> b_tree&;
+    /**
+     * @brief Copies content of the current b_tree into the specified b_tree.
+     *
+     * This operation is VERY expensive, both memory-wise and processor-wise,
+     * especially if the b_tree is large. For most situations, use a reference.
+     * Only use this for back-up.
+     *
+     * @param copy_to
+     */
+    auto operator=(const b_tree& copy_to) -> b_tree&;
+    ~b_tree();
 
     /**
-     * @brief Whether this node has no children.
+     * @brief Whether this b_tree contains the specified value.
      *
-     * @return true if this node has zero children, false otherwise
+     * @param val Specified value
      */
-    auto is_leaf() -> bool { return this->n_keys == 0; }
+    auto contains(int val) -> bool;
 
-    /**
-     * @brief Finds the node containing the specified value, and return that
-     * node if found.
-     *
-     * @param val
-     * @return
-     */
-    auto find(T val) -> std::optional<std::reference_wrapper<node<T>>> {
-        auto ret = find_(*this, val);
-        if (ret.has_value()) {
-            return (ret.value());
-        }
-        return std::nullopt;
-    }
+    void insert(int val);
+    void remove(int val);
 
-    auto contains(T val) -> bool { return find(val).has_value(); }
-
+    friend struct node;
   private:
-    size_t n_keys = 0;
-    std::array<T, MAX_KEYS> keys{};
-    std::array<std::optional<std::shared_ptr<node<T>>>, MAX_CHILDREN>
-        children{};
-
-    static auto find_(std::reference_wrapper<node<T>> curr_ref,
-                      T val) -> std::optional<std::reference_wrapper<node<T>>> {
-        node<T>* curr = &curr_ref.get();
-        size_t pos = 0;
-
-        for (; pos < curr->n_keys && val > curr->keys[pos]; ++pos) {
-        }
-
-        if (pos < curr->n_keys && val == curr->keys[pos]) {
-            return curr_ref;
-        }
-
-        if (curr->is_leaf() || !curr->children[pos].has_value()) {
-            return std::nullopt;
-        }
-
-        return find_(*curr->children[pos].value().get(), val);
-    }
+    /**
+     * @class priv
+     * @brief Private implementation of the b_tree.
+     *
+     */
+    class priv;
+    /**
+     * @brief Private implementation of the b_tree.
+     */
+    std::unique_ptr<priv> pimpl_;
 };
+
 } // namespace my_b_tree
 
 #endif // !B_TREE_PROTO_H
