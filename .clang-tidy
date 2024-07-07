@@ -1,5 +1,5 @@
 ---
-Checks:          '*,-abseil-*,-altera-*,-android-*,-darwin-*,-fuchsia-*,-google-*,-linuxkernel-*,-llvm*,-zircon-*'
+Checks:          '*,-abseil-*,-altera-*,-android-*,-darwin-*,-fuchsia-*,-google-*,-linuxkernel-*,-llvm*,-zircon-*,-misc-no-recursion'
 WarningsAsErrors: '*'
 HeaderFileExtensions:
   - h
