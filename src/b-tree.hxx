@@ -40,7 +40,7 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      * There are always at least 1 more key than there are children.
      * If the BTreeNode is leaf, there is no children.
      */
-    std::array<std::unique_ptr<BTreeNode>, 2 * min_deg - 1> children{0};
+    std::array<std::unique_ptr<BTreeNode>, (2 * min_deg) - 1> children{0};
 
     /**
      * @brief Parent of this instance of BTreeNode. If this instance is the tree
@@ -87,31 +87,35 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
   public:
     /* boilerplate */
 
-    explicit BTreeNode(BTreeNode* parent, std::size_t idx) : index(idx) {
+    constexpr explicit BTreeNode(BTreeNode* parent, std::size_t idx)
+        : index(idx) {
         if (parent == nullptr) {
             this->parent = std::nullopt;
         }
         this->parent = parent;
     };
 
-    BTreeNode(BTreeNode&&) = default;
-    BTreeNode(const BTreeNode&) = default;
-    auto operator=(BTreeNode&&) -> BTreeNode& = default;
-    auto operator=(const BTreeNode&) -> BTreeNode& = default;
-    ~BTreeNode() = default;
+    constexpr BTreeNode(BTreeNode&&) = default;
+    constexpr BTreeNode(const BTreeNode&) = default;
+    constexpr auto operator=(BTreeNode&&) -> BTreeNode& = default;
+    constexpr auto operator=(const BTreeNode&) -> BTreeNode& = default;
+    // HACK: C++20 and above only for constexpr destructor
+    constexpr ~BTreeNode() = default;
 
     /**
      * @brief Returns the number of keys in this instance of BTreeNode
      *
      * @return The number of keys in this instance of BTreeNode
      */
-    [[nodiscard]] auto key_count() const -> std::size_t { return n_keys; }
+    [[nodiscard]] auto constexpr key_count() const -> std::size_t {
+        return n_keys;
+    }
     /**
      * @brief Returns the number of children in this instance of BTreeNode
      *
      * @return The number of children in this instance of BTreeNode
      */
-    [[nodiscard]] auto children_count() const -> std::size_t {
+    [[nodiscard]] auto constexpr children_count() const -> std::size_t {
         if (leaf) {
             return 0;
         }
@@ -143,7 +147,6 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
     [[nodiscard]] constexpr auto contains(T key) const -> bool {
         return find_safe(key).has_value();
     }
-
 
     [[nodiscard]] auto constexpr find(T key) const
         -> std::optional<const BTreeNode*> {
