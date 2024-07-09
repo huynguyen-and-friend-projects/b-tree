@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <climits>
 
 namespace my_b_tree {
 
@@ -63,45 +64,16 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
     bool leaf{true};
 
     /**
-     * @brief Finds an instance of BTreeNode that is either this instance or a
-     * descendant that contains the value specified.
+     * @brief Returns whether this instance of BTreeNode contains the specified
+     * key.
      *
-     * @param val
-     * @return the pointer to the BTreeNode containing
+     * This is basically find(key).has_value()
+     *
+     * @param key
+     * @return Whether this instance of BTreeNode contains the specified key.
      */
-    [[nodiscard]] auto find(T val) const -> std::optional<const BTreeNode*> {
-        std::size_t pos = n_keys / 2;
-        std::size_t lptr = 0;
-        std::size_t rptr = n_keys;
-
-        // binary search with a flavor of trauma
-        while (lptr <= rptr) {
-            if (val == keys[pos]) {
-                return this;
-            }
-            if (val > keys[pos]) {
-                if (lptr == ULONG_MAX) [[unlikely]] {
-                    // INFO: at this point, pos = ULONG_MAX
-                    break;
-                }
-                lptr = pos + 1;
-            } else {
-                if (rptr == 0) [[unlikely]] {
-                    // INFO: at this point, pos = 0
-                    break;
-                }
-                rptr = pos - 1;
-            }
-            // INFO: this is to prevent the extreme case of lptr and rptr being
-            // too big that they overflow size_t.
-            // HACK: this could be a left bit-shift, which technically can be
-            // faster. But I find division more intent-clear.
-            pos = lptr / 2 + rptr / 2;
-        }
-        if (leaf) {
-            return std::nullopt;
-        }
-        return children[pos].get()->find(val);
+    [[nodiscard]] constexpr auto contains(T key) const -> bool {
+        return find_safe(key).has_value();
     }
 
     /**
@@ -164,6 +136,84 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      * @return Whether this instance of BTreeNode is a leaf node
      */
     [[nodiscard]] auto is_leaf() const -> bool { return leaf; }
+
+    /**
+     * @brief Returns whether this instance of BTreeNode is already full
+     *
+     * @return Whether this instance of BTreeNode is already full
+     */
+    [[nodiscard]] auto is_full() const -> bool { return n_keys == keys.size(); }
+
+    [[nodiscard]] auto constexpr find(T key) const
+        -> std::optional<const BTreeNode*> {
+        std::size_t pos = n_keys / 2;
+        std::size_t lptr = 0;
+        std::size_t rptr = n_keys;
+
+        // binary search with a flavor of trauma
+        while (lptr <= rptr) {
+            if (key == keys[pos]) {
+                return this; // NOLINT
+            }
+            if (key > keys[pos]) {
+                lptr = pos + 1;
+            } else {
+                rptr = pos - 1;
+            }
+            pos = (lptr + rptr) / 2;
+        }
+        if (leaf) {
+            return std::nullopt;
+        }
+        return children[pos].get()->find(key);
+    }
+
+    /**
+     * @brief Finds an instance of BTreeNode that is either this instance or a
+     * descendant that contains the value specified.
+     *
+     * WARNING: This find method should only be used if the BTree's index is
+     * very large (about at least half of ULONG_MAX). Otherwise, use the
+     * "normal" find method, since this method has some branching overhead.
+     *
+     * @param val
+     * @return the pointer to the BTreeNode containing
+     */
+    [[nodiscard]] auto constexpr find_safe(T key) const
+        -> std::optional<const BTreeNode*> {
+        std::size_t pos = n_keys / 2;
+        std::size_t lptr = 0;
+        std::size_t rptr = n_keys;
+
+        // binary search with a flavor of trauma
+        while (lptr <= rptr) {
+            if (key == keys[pos]) {
+                return this; // NOLINT
+            }
+            if (key > keys[pos]) {
+                if (lptr == ULONG_MAX) [[unlikely]] {
+                    // INFO: at this point, pos = ULONG_MAX
+                    break;
+                }
+                lptr = pos + 1;
+            } else {
+                if (rptr == 0) [[unlikely]] {
+                    // INFO: at this point, pos = 0
+                    break;
+                }
+                rptr = pos - 1;
+            }
+            // INFO: this is to prevent the extreme case of lptr and rptr being
+            // too big that they overflow size_t.
+            // HACK: this could be a left bit-shift, which technically can be
+            // faster. But I find division more intent-clear.
+            pos = lptr / 2 + rptr / 2;
+        }
+        if (leaf) {
+            return std::nullopt;
+        }
+        return children[pos].get()->find_safe(key);
+    }
 };
 
 template <EqComparable T, std::size_t min_deg> class BTree {
@@ -175,18 +225,28 @@ template <EqComparable T, std::size_t min_deg> class BTree {
     BTreeNode<T, min_deg> root{nullptr, 0};
 
   public:
-    BTree() = default;
-    BTree(BTree&&) = default;
-    BTree(const BTree&) = default;
-    auto operator=(BTree&&) -> BTree& = default;
-    auto operator=(const BTree&) -> BTree& = default;
-    ~BTree() = default;
+    constexpr BTree() = default;
+    constexpr BTree(BTree&&) = default;
+    constexpr BTree(const BTree&) = default;
+    constexpr auto operator=(BTree&&) -> BTree& = default;
+    constexpr auto operator=(const BTree&) -> BTree& = default;
+    constexpr ~BTree() = default;
 
-    auto get_root() -> BTreeNode<T, min_deg>& { return root; }
+    /**
+     * @return A reference to the root node of this instance of BTree
+     */
+    [[nodiscard]] auto constexpr get_root() -> const BTreeNode<T, min_deg>* {
+        return &root;
+    }
 
-    [[nodiscard]] auto
-    find(T val) const -> std::optional<const BTreeNode<T, min_deg>*> {
+    [[nodiscard]] auto constexpr find(T val) const
+        -> std::optional<const BTreeNode<T, min_deg>*> {
         return root.find(val);
+    }
+
+    [[nodiscard]] auto constexpr find_safe(T val) const
+        -> std::optional<const BTreeNode<T, min_deg>*> {
+        return root.find_safe(val);
     }
 };
 
