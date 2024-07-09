@@ -7,11 +7,11 @@
 #define B_TREE_PROTO_H
 
 #include <array>
+#include <climits>
 #include <concepts>
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <climits>
 
 namespace my_b_tree {
 
@@ -159,6 +159,9 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
             if (key > keys[pos]) {
                 lptr = pos + 1;
             } else {
+                if (pos == 0) {
+                    break;
+                }
                 rptr = pos - 1;
             }
             pos = (lptr + rptr) / 2;
