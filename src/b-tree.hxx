@@ -21,7 +21,10 @@ concept EqComparable = std::equality_comparable<T>;
 // HACK: forward decl of BTree so that BTreeNode could use it
 
 /**
- * @brief
+ * @brief A B-tree.
+ *
+ * The maximum number of keys in each node of the B-tree is 2*min_deg,
+ * and the maximum number of children nodes of each node is 2*min_deg + 1
  *
  */
 template <EqComparable T, std::size_t min_deg> class BTree;
@@ -71,14 +74,26 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      * @return true if the current node is split, false otherwise.
      */
     auto split() -> bool {
-        if (n_keys < keys.size()) {
+        // TODO: finish the split method
+        if (!is_full()) {
             return false;
         }
 
+        // root node
         if (!parent.has_value()) {
             // TODO: finish the split method for root node
             return true;
         }
+
+        parent.value()->split();
+        // at this point, min_deg == n_keys
+        std::unique_ptr<T> median = std::move(keys[min_deg / 2]);
+        // assignment happens here because parent.value()->split() may change
+        // this node's parent
+        BTreeNode* curr_parent = parent.value();
+        std::unique_ptr<T> new_node =
+            std::make_unique<T>(curr_parent, this->index + 1);
+
         return true;
     }
 
