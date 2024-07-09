@@ -1,5 +1,6 @@
 **/compile_commands.json
 build/*
 .cache
+.ccls-cache
 .vscode
 test-exe
