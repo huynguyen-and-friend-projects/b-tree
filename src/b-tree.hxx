@@ -64,19 +64,6 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
     bool leaf{true};
 
     /**
-     * @brief Returns whether this instance of BTreeNode contains the specified
-     * key.
-     *
-     * This is basically find(key).has_value()
-     *
-     * @param key
-     * @return Whether this instance of BTreeNode contains the specified key.
-     */
-    [[nodiscard]] constexpr auto contains(T key) const -> bool {
-        return find_safe(key).has_value();
-    }
-
-    /**
      * @brief Splits the current node into two, if it's full.
      *
      * If the current node is not full, this function simply does nothing.
@@ -143,6 +130,20 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      * @return Whether this instance of BTreeNode is already full
      */
     [[nodiscard]] auto is_full() const -> bool { return n_keys == keys.size(); }
+
+    /**
+     * @brief Returns whether this instance of BTreeNode contains the specified
+     * key.
+     *
+     * This is basically find(key).has_value()
+     *
+     * @param key
+     * @return Whether this instance of BTreeNode contains the specified key.
+     */
+    [[nodiscard]] constexpr auto contains(T key) const -> bool {
+        return find_safe(key).has_value();
+    }
+
 
     [[nodiscard]] auto constexpr find(T key) const
         -> std::optional<const BTreeNode*> {
