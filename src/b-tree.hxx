@@ -174,18 +174,20 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
         // move the keys and children larger than the median from the old child
         // to the new child
         std::size_t new_node_i = 0;
-        for (std::size_t i = (n_keys_ / 2) + 1; i < n_keys_ + 1; i++) {
-            new_node->keys_[new_node_i] = std::move(this->keys_[i]);
+        for (std::size_t idx = (n_keys_ / 2) + 1; idx < n_keys_ + 1; idx++) {
+            new_node->keys_[new_node_i] = std::move(this->keys_[idx]);
             ++new_node_i;
             --(this->n_keys_);
             new_node->n_keys_++;
 
-            if (this->children_[i] == nullptr) {
+            if (this->children_[idx + 1] == nullptr) {
                 continue;
             }
-            new_node->children_[new_node_i] = std::move(this->children_[i]);
-            new_node->children_[new_node_i]->index_ = new_node_i;
-            new_node->children_[new_node_i]->parent_ = new_node;
+            new_node->children_[new_node->n_children_] =
+                std::move(this->children_[idx + 1]);
+            new_node->children_[new_node->n_children_]->index_ =
+                new_node->n_children_;
+            new_node->children_[new_node->n_children_]->parent_ = new_node;
 
             ++new_node->n_children_;
             --this->n_children_;
