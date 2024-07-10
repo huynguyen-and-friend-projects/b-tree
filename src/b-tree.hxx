@@ -12,11 +12,13 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace my_b_tree {
 
 template <typename T>
-concept EqComparable = std::equality_comparable<T>;
+concept BTreeTypenameConcept =
+    std::equality_comparable<T> || std::is_move_assignable_v<T>;
 
 // HACK: forward decl of BTree so that BTreeNode could use it
 
@@ -27,23 +29,23 @@ concept EqComparable = std::equality_comparable<T>;
  * and the maximum number of children nodes of each node is 2*min_deg + 1
  *
  */
-template <EqComparable T, std::size_t min_deg> class BTree;
+template <BTreeTypenameConcept T, std::size_t min_deg> class BTree;
 
-template <EqComparable T, std::size_t min_deg> class BTreeNode {
+template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
   private:
     /**
      * @brief The array of keys stored inside this instance of BTreeNode.
      *
      * There are always at least 1 more key than there are children.
      */
-    std::array<T, 2 * min_deg> keys{0};
+    std::array<T, (2 * min_deg) - 1> keys{0};
     /**
      * @brief The array of children pointers from this instance of BTreeNode.
      *
      * There are always at least 1 more key than there are children.
      * If the BTreeNode is leaf, there is no children.
      */
-    std::array<std::unique_ptr<BTreeNode>, (2 * min_deg) - 1> children{0};
+    std::array<std::unique_ptr<BTreeNode>, 2 * min_deg> children{0};
 
     /**
      * @brief Parent of this instance of BTreeNode. If this instance is the tree
@@ -71,9 +73,11 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      *
      * If the current node is not full, this function simply does nothing.
      *
+     * @param curr_bt The current BTree. This is passed in in case a new root is
+     * created
      * @return true if the current node is split, false otherwise.
      */
-    auto split() -> bool {
+    auto split(BTree<T, min_deg>* curr_bt) -> bool {
         // TODO: finish the split method
         if (!is_full()) {
             return false;
@@ -82,17 +86,64 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
         // root node
         if (!parent.has_value()) {
             // TODO: finish the split method for root node
+            std::unique_ptr<T> median = std::move(keys[n_keys / 2]);
+            std::unique_ptr<BTreeNode> new_root =
+                std::make_unique<BTreeNode>(nullptr, 0);
+            parent = new_root.get();
+            std::unique_ptr<BTreeNode> new_node =
+                std::make_unique<BTreeNode>(new_root.get(), 1);
+
+            // insert median into new root
+            new_root->keys[0] = std::move(median);
+
+            // move the keys and children larger than the median from the old
+            // child to the new child
+            std::size_t new_node_i = 0;
+            for (std::size_t i = (n_keys / 2) + 1; i < n_keys; i++) {
+                new_node->keys[new_node_i] = std::move(this->keys[i]);
+                new_node->children[new_node_i] = std::move(this->children[i]);
+                new_node->children[new_node_i]->index = new_node_i;
+                ++new_node_i;
+                --(this->n_keys);
+            }
+
+            curr_bt->root = std::move(new_root);
+
             return true;
         }
 
         parent.value()->split();
-        // at this point, min_deg == n_keys
-        std::unique_ptr<T> median = std::move(keys[min_deg / 2]);
+        std::unique_ptr<T> median = std::move(keys[n_keys / 2]);
         // assignment happens here because parent.value()->split() may change
         // this node's parent
         BTreeNode* curr_parent = parent.value();
-        std::unique_ptr<T> new_node =
-            std::make_unique<T>(curr_parent, this->index + 1);
+        // at this point, curr_parent is guaranteed to have at least 1 spare
+        // slot
+
+        for (std::size_t i = curr_parent->n_keys; i > index; --i) {
+            // move a child and the key just smaller than this child
+            curr_parent->children[i + 1] = std::move(curr_parent->children[i]);
+            curr_parent->keys[(i + 1) - 1] =
+                std::move(curr_parent->keys[i - 1]);
+            ++curr_parent->children[i + 1]->index;
+        }
+        // insert median to parent
+        curr_parent->keys[index] = std::move(median);
+
+        curr_parent->children[this->index + 1] =
+            std::make_unique<BTreeNode>(curr_parent, this->index + 1);
+        BTreeNode* new_node = curr_parent->children[this->index + 1].get();
+
+        // move the keys and children larger than the median from the old child
+        // to the new child
+        std::size_t new_node_i = 0;
+        for (std::size_t i = (n_keys / 2) + 1; i < n_keys; i++) {
+            new_node->keys[new_node_i] = std::move(this->keys[i]);
+            new_node->children[new_node_i] = std::move(this->children[i]);
+            new_node->children[new_node_i]->index = new_node_i;
+            ++new_node_i;
+            --(this->n_keys);
+        }
 
         return true;
     }
@@ -160,26 +211,30 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
      * @return Whether this instance of BTreeNode contains the specified key.
      */
     [[nodiscard]] constexpr auto contains(T key) const -> bool {
-        return find_safe(key).has_value();
+        return find(key).has_value();
     }
 
+    /**
+     * @brief Finds an instance of BTreeNode that is either this instance or a
+     * descendant that contains the value specified.
+     *
+     * @param key
+     * @return the pointer to the BTreeNode containing the key
+     */
     [[nodiscard]] auto constexpr find(T key) const
-        -> std::optional<const BTreeNode*> {
-        std::size_t pos = n_keys / 2;
-        std::size_t lptr = 0;
-        std::size_t rptr = n_keys;
-
-        // binary search with a flavor of trauma
+        -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
+        long long int pos = n_keys / 2;
+        long long int lptr = 0;
+        long long int rptr = n_keys;
         while (lptr <= rptr) {
             if (key == keys[pos]) {
-                return this; // NOLINT
+                // HACK: forces make_pair to use the copy version
+                return std::make_pair<const BTreeNode*, std::size_t>(
+                    this, static_cast<std::size_t>(pos));
             }
             if (key > keys[pos]) {
                 lptr = pos + 1;
             } else {
-                if (pos == 0) {
-                    break;
-                }
                 rptr = pos - 1;
             }
             pos = (lptr + rptr) / 2;
@@ -187,22 +242,21 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
         if (leaf) {
             return std::nullopt;
         }
-        return children[pos].get()->find(key);
+        return children[pos]->find(key);
     }
 
     /**
      * @brief Finds an instance of BTreeNode that is either this instance or a
      * descendant that contains the value specified.
      *
-     * WARNING: This find method should only be used if the BTree's index is
-     * very large (about at least half of ULONG_MAX). Otherwise, use the
-     * "normal" find method, since this method has some branching overhead.
+     * WARNING: only use this if you really, really value 96 bits, otherwise,
+     * the normal "find" is faster
      *
      * @param val
-     * @return the pointer to the BTreeNode containing
+     * @return the pointer to the BTreeNode containing the key
      */
-    [[nodiscard]] auto constexpr find_safe(T key) const
-        -> std::optional<const BTreeNode*> {
+    [[nodiscard]] auto constexpr find_space_constrained(T key) const
+        -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         std::size_t pos = n_keys / 2;
         std::size_t lptr = 0;
         std::size_t rptr = n_keys;
@@ -210,7 +264,10 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
         // binary search with a flavor of trauma
         while (lptr <= rptr) {
             if (key == keys[pos]) {
-                return this; // NOLINT
+                // HACK: forces make_pair to use the copy version
+                return std::make_pair<const BTreeNode*, std::size_t>(
+                    this,
+                    (std::size_t)pos); // NOLINT
             }
             if (key > keys[pos]) {
                 if (lptr == ULONG_MAX) [[unlikely]] {
@@ -219,7 +276,7 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
                 }
                 lptr = pos + 1;
             } else {
-                if (rptr == 0) [[unlikely]] {
+                if (pos == 0) [[unlikely]] {
                     // INFO: at this point, pos = 0
                     break;
                 }
@@ -234,17 +291,20 @@ template <EqComparable T, std::size_t min_deg> class BTreeNode {
         if (leaf) {
             return std::nullopt;
         }
-        return children[pos].get()->find_safe(key);
+        return children[pos].get()->find_space_constrained(key);
     }
 };
 
-template <EqComparable T, std::size_t min_deg> class BTree {
+template <BTreeTypenameConcept T, std::size_t min_deg> class BTree {
   private:
     /**
      * @brief This instance of BTree's root. At the beginning, the root has no
      * key
      */
-    BTreeNode<T, min_deg> root{nullptr, 0};
+    std::unique_ptr<BTreeNode<T, min_deg>> root =
+        std::make_unique<BTreeNode<T, min_deg>>(nullptr, 0);
+
+    friend class BTreeNode<T, min_deg>;
 
   public:
     constexpr BTree() = default;
@@ -258,17 +318,17 @@ template <EqComparable T, std::size_t min_deg> class BTree {
      * @return A reference to the root node of this instance of BTree
      */
     [[nodiscard]] auto constexpr get_root() -> const BTreeNode<T, min_deg>* {
-        return &root;
+        return root.get();
     }
 
     [[nodiscard]] auto constexpr find(T val) const
-        -> std::optional<const BTreeNode<T, min_deg>*> {
-        return root.find(val);
+        -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
+        return root->find(val);
     }
 
-    [[nodiscard]] auto constexpr find_safe(T val) const
-        -> std::optional<const BTreeNode<T, min_deg>*> {
-        return root.find_safe(val);
+    [[nodiscard]] auto constexpr find_space_constrained(T val) const
+        -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
+        return root->find_space_constrained(val);
     }
 };
 
