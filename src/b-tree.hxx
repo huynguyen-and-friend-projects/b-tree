@@ -161,8 +161,8 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
 
         // keys_[n_keys_ / 2] is now invalid, and so
         // children_[n_keys_ / 2 + 1] needs to move to the new node
-        if (children_[n_keys_ / 2 + 1] != nullptr) {
-            new_node->children_[0] = std::move(children_[n_keys_ / 2 + 1]);
+        if (children_[(n_keys_ / 2) + 1] != nullptr) {
+            new_node->children_[0] = std::move(children_[(n_keys_ / 2) + 1]);
             new_node->children_[0]->index_ = 0;
             new_node->children_[0]->parent_ = new_node;
             --this->n_children_;

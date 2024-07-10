@@ -24,28 +24,35 @@ TEST(b_tree, insert) { // NOLINT
     ASSERT_TRUE(test_tree.find(6).has_value());
     test_tree.insert(3); // NOLINT
     ASSERT_TRUE(test_tree.find(3).has_value());
-    test_tree.insert(7);
+    test_tree.insert(7); // NOLINT
     ASSERT_TRUE(test_tree.find(7).has_value());
-    test_tree.insert(8);
+    test_tree.insert(8); // NOLINT
     ASSERT_TRUE(test_tree.find(8).has_value());
-    test_tree.insert(1);
+    test_tree.insert(1); // NOLINT
     ASSERT_TRUE(test_tree.find(1).has_value());
 
-    test_tree.insert(12);
+    test_tree.insert(12); // NOLINT
     ASSERT_TRUE(test_tree.find(12).has_value());
-    test_tree.insert(16);
+    test_tree.insert(16); // NOLINT
     ASSERT_TRUE(test_tree.find(16).has_value());
-    test_tree.insert(-3);
+    test_tree.insert(-3); // NOLINT
     ASSERT_TRUE(test_tree.find(-3).has_value());
-    test_tree.insert(21);
+    test_tree.insert(21); // NOLINT
     ASSERT_TRUE(test_tree.find(21).has_value());
     std::cout << "Finish first round of torture\n";
 
-    // stress testing
+    // stress testing on the extreme positive
     for (const int num : std::views::iota(64, 129)) {
         test_tree.insert(num);
     }
     for (const int num : std::views::iota(64, 129)) {
+        ASSERT_TRUE(test_tree.find(num).has_value());
+    }
+    // stress testing on the extreme negative
+    for (const int num : std::views::iota(-128, -63)) {
+        test_tree.insert(num);
+    }
+    for (const int num : std::views::iota(-128, -63)) {
         ASSERT_TRUE(test_tree.find(num).has_value());
     }
 }
