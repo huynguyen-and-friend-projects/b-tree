@@ -85,13 +85,12 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
 
         // root node
         if (!parent.has_value()) {
-            // TODO: finish the split method for root node
             std::unique_ptr<T> median = std::move(keys[n_keys / 2]);
             std::unique_ptr<BTreeNode> new_root =
                 std::make_unique<BTreeNode>(nullptr, 0);
-            parent = new_root.get();
+            this->parent = new_root.get();
             std::unique_ptr<BTreeNode> new_node =
-                std::make_unique<BTreeNode>(new_root.get(), 1);
+                std::make_unique<BTreeNode>(this->parent, 1);
 
             // insert median into new root
             new_root->keys[0] = std::move(median);
