@@ -38,14 +38,14 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      *
      * There are always at least 1 more key than there are children.
      */
-    std::array<T, (2 * min_deg) - 1> keys{0};
+    std::array<T, (2 * min_deg) - 1> keys_{0};
     /**
      * @brief The array of children pointers from this instance of BTreeNode.
      *
      * There are always at least 1 more key than there are children.
      * If the BTreeNode is leaf, there is no children.
      */
-    std::array<std::unique_ptr<BTreeNode>, 2 * min_deg> children{0};
+    std::array<std::unique_ptr<BTreeNode>, 2 * min_deg> children_{0};
 
     /**
      * @brief Parent of this instance of BTreeNode. If this instance is the tree
@@ -53,20 +53,18 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * !parent.has_value()).
      *
      */
-    std::optional<BTreeNode*> parent;
+    BTreeNode* parent_;
     /**
      * @brief Number of keys currently stored by this instance of BTreeNode
      */
-    std::size_t n_keys{0};
+    std::size_t n_keys_{0};
+    // TODO: add n_children as the way to count children
+    std::size_t n_children_{0};
     /**
      * @brief The index of this instance of BTreeNode's pointer stored inside
      * its parent's children pointer array.
      */
-    std::size_t index;
-    /**
-     * @brief Number of children currently stored by this instance of BTreeNode
-     */
-    bool leaf{true};
+    std::size_t index_;
 
     /**
      * @brief Splits the current node into two, if it's full.
@@ -77,72 +75,170 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * created
      * @return true if the current node is split, false otherwise.
      */
-    constexpr auto split(BTree<T, min_deg>* curr_bt) -> bool {
+    constexpr auto split_(BTree<T, min_deg>& curr_bt) -> bool {
         if (!is_full()) {
             return false;
         }
 
         // root node
-        if (!parent.has_value()) {
-            std::unique_ptr<T> median = std::move(keys[n_keys / 2]);
+        if (parent_ == nullptr) {
+            T median = std::move(this->keys_[n_keys_ / 2]);
+
             std::unique_ptr<BTreeNode> new_root =
                 std::make_unique<BTreeNode>(nullptr, 0);
-            this->parent = new_root.get();
-            std::unique_ptr<BTreeNode> new_node =
-                std::make_unique<BTreeNode>(this->parent, 1);
-
             // insert median into new root
-            new_root->keys[0] = std::move(median);
+            new_root->keys_[0] = std::move(median);
+            ++new_root->n_keys_;
+            // add this and a new node as the new root's children
+            new_root->children_[0] = std::move(curr_bt.root);
+            new_root->children_[1] =
+                std::make_unique<BTreeNode>(new_root.get(), 1);
+            new_root->n_children_ = 2;
 
-            // move the keys and children larger than the median from the old
+            this->parent_ = new_root.get();
+            BTreeNode* new_node = new_root->children_[1].get();
+
+            // keys_[n_keys_ / 2] is now invalid, and so
+            // children_[n_keys_ / 2 + 1] needs to move to the new node
+            if (children_[(n_keys_ / 2) + 1] != nullptr) {
+                new_node->children_[0] =
+                    std::move(children_[(n_keys_ / 2) + 1]);
+                new_node->children_[0]->index_ = 0;
+                new_node->children_[0]->parent_ = new_node;
+                ++new_node->n_children_;
+                --this->n_children_;
+            }
+            --(this->n_keys_);
+
+            // move the keys and child larger than the median from the old
             // child to the new child
             std::size_t new_node_i = 0;
-            for (std::size_t i = (n_keys / 2) + 1; i < n_keys; i++) {
-                new_node->keys[new_node_i] = std::move(this->keys[i]);
-                new_node->children[new_node_i] = std::move(this->children[i]);
-                new_node->children[new_node_i]->index = new_node_i;
+            // HACK: n_keys_ + 1 because the supposed median slot is now empty
+            std::size_t idx = (n_keys_ / 2) + 1;
+            std::size_t max_i = n_keys_ + 1;
+            for (; idx < max_i; idx++) {
+                new_node->keys_[new_node_i] = std::move(this->keys_[idx]);
+                --this->n_keys_;
                 ++new_node_i;
-                --(this->n_keys);
+                ++new_node->n_keys_;
+                if (this->children_[idx + 1] == nullptr) {
+                    continue;
+                }
+                new_node->children_[new_node->n_children_] =
+                    std::move(this->children_[idx + 1]);
+                new_node->children_[new_node->n_children_]->index_ =
+                    new_node->n_children_;
+                new_node->children_[new_node->n_children_]->parent_ = new_node;
+                ++new_node->n_children_;
+                --this->n_children_;
             }
 
-            curr_bt->root = std::move(new_root);
+            curr_bt.root = std::move(new_root);
+            this->parent_ = curr_bt.root.get();
+            new_node->parent_ = curr_bt.root.get();
 
             return true;
         }
 
-        parent.value()->split();
-        std::unique_ptr<T> median = std::move(keys[n_keys / 2]);
-        // assignment happens here because parent.value()->split() may change
-        // this node's parent
-        BTreeNode* curr_parent = parent.value();
-        // at this point, curr_parent is guaranteed to have at least 1 spare
-        // slot
+        parent_->split_(curr_bt);
+        T median = std::move(keys_[n_keys_ / 2]);
 
-        for (std::size_t i = curr_parent->n_keys; i > index; --i) {
+        // make room to insert median
+        for (std::size_t i = parent_->n_keys_; i > index_; --i) {
             // move a child and the key just smaller than this child
-            curr_parent->children[i + 1] = std::move(curr_parent->children[i]);
-            curr_parent->keys[(i + 1) - 1] =
-                std::move(curr_parent->keys[i - 1]);
-            ++curr_parent->children[i + 1]->index;
+            parent_->children_[i + 1] = std::move(parent_->children_[i]);
+            parent_->keys_[(i + 1) - 1] = std::move(parent_->keys_[i - 1]);
+            ++parent_->children_[i + 1]->index_;
         }
         // insert median to parent
-        curr_parent->keys[index] = std::move(median);
+        parent_->keys_[index_] = median;
+        ++parent_->n_keys_;
 
-        curr_parent->children[this->index + 1] =
-            std::make_unique<BTreeNode>(curr_parent, this->index + 1);
-        BTreeNode* new_node = curr_parent->children[this->index + 1].get();
+        parent_->children_[this->index_ + 1] =
+            std::make_unique<BTreeNode>(parent_, this->index_ + 1);
+        ++parent_->n_children_;
+        BTreeNode* new_node = parent_->children_[this->index_ + 1].get();
+
+        // keys_[n_keys_ / 2] is now invalid, and so
+        // children_[n_keys_ / 2 + 1] needs to move to the new node
+        if (children_[n_keys_ / 2 + 1] != nullptr) {
+            new_node->children_[0] = std::move(children_[n_keys_ / 2 + 1]);
+            new_node->children_[0]->index_ = 0;
+            new_node->children_[0]->parent_ = new_node;
+            --this->n_children_;
+            ++new_node->n_children_;
+        }
+
+        --this->n_keys_;
 
         // move the keys and children larger than the median from the old child
         // to the new child
         std::size_t new_node_i = 0;
-        for (std::size_t i = (n_keys / 2) + 1; i < n_keys; i++) {
-            new_node->keys[new_node_i] = std::move(this->keys[i]);
-            new_node->children[new_node_i] = std::move(this->children[i]);
-            new_node->children[new_node_i]->index = new_node_i;
+        for (std::size_t i = (n_keys_ / 2) + 1; i < n_keys_ + 1; i++) {
+            new_node->keys_[new_node_i] = std::move(this->keys_[i]);
             ++new_node_i;
-            --(this->n_keys);
+            --(this->n_keys_);
+            new_node->n_keys_++;
+
+            if (this->children_[i] == nullptr) {
+                continue;
+            }
+            new_node->children_[new_node_i] = std::move(this->children_[i]);
+            new_node->children_[new_node_i]->index_ = new_node_i;
+            new_node->children_[new_node_i]->parent_ = new_node;
+
+            ++new_node->n_children_;
+            --this->n_children_;
         }
 
+        return true;
+    }
+
+    /**
+     * @brief Inserts the specified value into this node. Must only be called
+     * when this node is leaf
+     *
+     * @param curr_bt
+     * @param val
+     */
+    constexpr auto insert_(BTree<T, min_deg>& curr_bt, T val) -> bool {
+        if (this->split_(curr_bt)) {
+            return curr_bt.insert(val);
+        }
+        // the current node is guaranteed to be non-full here
+
+        // search for the spot
+        long long int lptr = 0;
+        long long int rptr = n_keys_ - 1;
+        long long int mid = (lptr + rptr) / 2;
+
+        while (lptr <= rptr) {
+            if (keys_[mid] == val) {
+                return false;
+            }
+            if (keys_[mid] < val) {
+                lptr = mid + 1;
+            } else {
+                rptr = mid - 1;
+            }
+            mid = (lptr + rptr) / 2;
+        }
+
+        // here, the two pointers would be at somewhere like:
+        // ... | < val   | > val    |       | ...
+        //       rptr      lptr
+        // and we want to insert right after the right pointer.
+
+        // HACK: this is possible because right is, at minimum, -1
+        const long long int insert_pos = rptr + 1;
+
+        // make room for new element
+        for (long long int i = n_keys_; i > insert_pos; --i) {
+            keys_[i] = std::move(keys_[i - 1]);
+        }
+        // insert
+        keys_[insert_pos] = std::move(val);
+        ++n_keys_;
         return true;
     }
 
@@ -152,12 +248,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
     /* boilerplate */
 
     constexpr explicit BTreeNode(BTreeNode* parent, std::size_t idx)
-        : index(idx) {
-        if (parent == nullptr) {
-            this->parent = std::nullopt;
-        }
-        this->parent = parent;
-    };
+        : parent_(parent), index_(idx){};
 
     constexpr BTreeNode(BTreeNode&&) = default;
     constexpr BTreeNode(const BTreeNode&) = default;
@@ -172,7 +263,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @return The number of keys in this instance of BTreeNode
      */
     [[nodiscard]] constexpr auto key_count() const -> std::size_t {
-        return n_keys;
+        return n_keys_;
     }
     /**
      * @brief Returns the number of children in this instance of BTreeNode
@@ -180,17 +271,16 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @return The number of children in this instance of BTreeNode
      */
     [[nodiscard]] constexpr auto children_count() const -> std::size_t {
-        if (leaf) {
-            return 0;
-        }
-        return n_keys - 1;
+        return n_children_;
     }
     /**
      * @brief Returns whether this instance of BTreeNode is a leaf node
      *
      * @return Whether this instance of BTreeNode is a leaf node
      */
-    [[nodiscard]] constexpr auto is_leaf() const -> bool { return leaf; }
+    [[nodiscard]] constexpr auto is_leaf() const -> bool {
+        return n_children_ == 0;
+    }
 
     /**
      * @brief Returns whether this instance of BTreeNode is already full
@@ -198,7 +288,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @return Whether this instance of BTreeNode is already full
      */
     [[nodiscard]] constexpr auto is_full() const -> bool {
-        return n_keys == keys.size();
+        return n_keys_ == keys_.size();
     }
 
     /**
@@ -223,75 +313,26 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      */
     [[nodiscard]] constexpr auto find(T key) const
         -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
-        long long int pos = n_keys / 2;
         long long int lptr = 0;
-        long long int rptr = n_keys - 1;
+        long long int rptr = (n_keys_ == 0) ? -1 : n_keys_ - 1;
+        long long int pos = (lptr + rptr) / 2;
         while (lptr <= rptr) {
-            if (key == keys[pos]) {
+            if (key == keys_[pos]) {
                 // HACK: forces make_pair to use the copy version
                 return std::make_pair<const BTreeNode*, std::size_t>(
                     this, static_cast<std::size_t>(pos));
             }
-            if (key > keys[pos]) {
+            if (key > keys_[pos]) {
                 lptr = pos + 1;
             } else {
                 rptr = pos - 1;
             }
             pos = (lptr + rptr) / 2;
         }
-        if (leaf) {
+        if (is_leaf()) {
             return std::nullopt;
         }
-        return children[pos]->find(key);
-    }
-
-    /**
-     * @brief Finds an instance of BTreeNode that is either this instance or a
-     * descendant that contains the value specified.
-     *
-     * WARNING: only use this if you really, really value 96 bits, otherwise,
-     * the normal "find" is faster
-     *
-     * @param val
-     * @return the pointer to the BTreeNode containing the key
-     */
-    [[nodiscard]] constexpr auto find_space_constrained(T key) const
-        -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
-        std::size_t pos = n_keys / 2;
-        std::size_t lptr = 0;
-        std::size_t rptr = n_keys - 1;
-
-        // binary search with a flavor of trauma
-        while (lptr <= rptr) {
-            if (key == keys[pos]) {
-                // HACK: forces make_pair to use the copy version
-                return std::make_pair<const BTreeNode*, std::size_t>(
-                    this,
-                    (std::size_t)pos); // NOLINT
-            }
-            if (key > keys[pos]) {
-                if (lptr == ULONG_MAX) [[unlikely]] {
-                    // INFO: at this point, pos = ULONG_MAX
-                    break;
-                }
-                lptr = pos + 1;
-            } else {
-                if (pos == 0) [[unlikely]] {
-                    // INFO: at this point, pos = 0
-                    break;
-                }
-                rptr = pos - 1;
-            }
-            // INFO: this is to prevent the extreme case of lptr and rptr being
-            // too big that they overflow size_t.
-            // HACK: this could be a left bit-shift, which technically can be
-            // faster. But I find division more intent-clear.
-            pos = lptr / 2 + rptr / 2;
-        }
-        if (leaf) {
-            return std::nullopt;
-        }
-        return children[pos].get()->find_space_constrained(key);
+        return children_[rptr + 1]->find(key);
     }
 };
 
@@ -321,14 +362,38 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTree {
         return root.get();
     }
 
-    [[nodiscard]] constexpr auto find(T val) const
-        -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
-        return root->find(val);
+    [[nodiscard]] constexpr auto
+    find(T val) const -> std::optional<const BTreeNode<T, min_deg>*> {
+        auto ret = root->find(val);
+        if (ret.has_value()) {
+            return ret.value().first;
+        }
+        return std::nullopt;
     }
 
-    [[nodiscard]] constexpr auto find_space_constrained(T val) const
-        -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
-        return root->find_space_constrained(val);
+    constexpr auto insert(T val) -> bool {
+        auto curr_node = root.get();
+        long long int mid, lptr, rptr; // NOLINT
+        while (!curr_node->is_leaf()) {
+            lptr = 0;
+            rptr = (curr_node->n_keys_ == 0) ? -1 : curr_node->n_keys_ - 1;
+            mid = (lptr + rptr) / 2;
+
+            while (lptr <= rptr) {
+                if (curr_node->keys_[mid] == val) {
+                    return false;
+                }
+                if (curr_node->keys_[mid] < val) {
+                    lptr = mid + 1;
+                } else {
+                    rptr = mid - 1;
+                }
+                mid = (lptr + rptr) / 2;
+            }
+
+            curr_node = curr_node->children_[rptr + 1].get();
+        }
+        return curr_node->insert_(*this, val);
     }
 };
 

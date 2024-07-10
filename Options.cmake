@@ -16,7 +16,7 @@ if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
     if(MSVC)
         target_compile_options(compile-opts INTERFACE "/Od")
     else(MSVC)
-        target_compile_options(compile-opts INTERFACE "-Og")
+        target_compile_options(compile-opts INTERFACE "-O0")
     endif()
 endif()
 
