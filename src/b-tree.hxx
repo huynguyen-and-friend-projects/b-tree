@@ -223,7 +223,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
         -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         long long int pos = n_keys / 2;
         long long int lptr = 0;
-        long long int rptr = n_keys;
+        long long int rptr = n_keys - 1;
         while (lptr <= rptr) {
             if (key == keys[pos]) {
                 // HACK: forces make_pair to use the copy version
@@ -257,7 +257,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
         -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         std::size_t pos = n_keys / 2;
         std::size_t lptr = 0;
-        std::size_t rptr = n_keys;
+        std::size_t rptr = n_keys - 1;
 
         // binary search with a flavor of trauma
         while (lptr <= rptr) {
