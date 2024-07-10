@@ -78,7 +78,6 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @return true if the current node is split, false otherwise.
      */
     auto split(BTree<T, min_deg>* curr_bt) -> bool {
-        // TODO: finish the split method
         if (!is_full()) {
             return false;
         }
