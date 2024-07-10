@@ -77,7 +77,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * created
      * @return true if the current node is split, false otherwise.
      */
-    auto split(BTree<T, min_deg>* curr_bt) -> bool {
+    constexpr auto split(BTree<T, min_deg>* curr_bt) -> bool {
         if (!is_full()) {
             return false;
         }
@@ -171,7 +171,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      *
      * @return The number of keys in this instance of BTreeNode
      */
-    [[nodiscard]] auto constexpr key_count() const -> std::size_t {
+    [[nodiscard]] constexpr auto key_count() const -> std::size_t {
         return n_keys;
     }
     /**
@@ -179,7 +179,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      *
      * @return The number of children in this instance of BTreeNode
      */
-    [[nodiscard]] auto constexpr children_count() const -> std::size_t {
+    [[nodiscard]] constexpr auto children_count() const -> std::size_t {
         if (leaf) {
             return 0;
         }
@@ -190,14 +190,16 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      *
      * @return Whether this instance of BTreeNode is a leaf node
      */
-    [[nodiscard]] auto is_leaf() const -> bool { return leaf; }
+    [[nodiscard]] constexpr auto is_leaf() const -> bool { return leaf; }
 
     /**
      * @brief Returns whether this instance of BTreeNode is already full
      *
      * @return Whether this instance of BTreeNode is already full
      */
-    [[nodiscard]] auto is_full() const -> bool { return n_keys == keys.size(); }
+    [[nodiscard]] constexpr auto is_full() const -> bool {
+        return n_keys == keys.size();
+    }
 
     /**
      * @brief Returns whether this instance of BTreeNode contains the specified
@@ -219,7 +221,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @param key
      * @return the pointer to the BTreeNode containing the key
      */
-    [[nodiscard]] auto constexpr find(T key) const
+    [[nodiscard]] constexpr auto find(T key) const
         -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         long long int pos = n_keys / 2;
         long long int lptr = 0;
@@ -253,7 +255,7 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTreeNode {
      * @param val
      * @return the pointer to the BTreeNode containing the key
      */
-    [[nodiscard]] auto constexpr find_space_constrained(T key) const
+    [[nodiscard]] constexpr auto find_space_constrained(T key) const
         -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         std::size_t pos = n_keys / 2;
         std::size_t lptr = 0;
@@ -315,16 +317,16 @@ template <BTreeTypenameConcept T, std::size_t min_deg> class BTree {
     /**
      * @return A reference to the root node of this instance of BTree
      */
-    [[nodiscard]] auto constexpr get_root() -> const BTreeNode<T, min_deg>* {
+    [[nodiscard]] constexpr auto get_root() -> const BTreeNode<T, min_deg>* {
         return root.get();
     }
 
-    [[nodiscard]] auto constexpr find(T val) const
+    [[nodiscard]] constexpr auto find(T val) const
         -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
         return root->find(val);
     }
 
-    [[nodiscard]] auto constexpr find_space_constrained(T val) const
+    [[nodiscard]] constexpr auto find_space_constrained(T val) const
         -> std::optional<std::pair<const BTreeNode<T, min_deg>*, std::size_t>> {
         return root->find_space_constrained(val);
     }
