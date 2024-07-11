@@ -1,7 +1,6 @@
 #include "b-tree.hxx"
 #include <gtest/gtest.h>
 #include <ranges>
-#include <utility>
 
 namespace bt = my_b_tree;
 
@@ -40,7 +39,7 @@ TEST(b_tree, insert_medium_mode) {
 TEST(b_tree, insert_hard_mode) {
     bt::BTree<int, 65> big_test_tree{}; // NOLINT
     for (const int num : std::views::iota(-512, 513)) {
-        big_test_tree.insert(std::move(num));
+        big_test_tree.insert(static_cast<int>(num));
     }
     for (const int num : std::views::iota(-512, 513)) {
         ASSERT_TRUE(big_test_tree.contains(num));
