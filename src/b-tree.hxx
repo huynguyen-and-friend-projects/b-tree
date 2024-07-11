@@ -476,7 +476,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
             curr_node = curr_node->children_[pair_result.second + 1].get();
             pair_result = curr_node->inner_key_find_(key);
         }
-        long long index = pair_result.second + 1;
+        long long index = static_cast<long long>(pair_result.second) + 1;
         curr_node->inner_insert_key_at_(const_cast<BTree*>(this),
                                         std::move(key), index);
         return true;
