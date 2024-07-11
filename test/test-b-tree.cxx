@@ -37,7 +37,7 @@ TEST(b_tree, insert_medium_mode) {
 }
 
 TEST(b_tree, insert_hard_mode) {
-    bt::BTree<int, 65> big_test_tree{}; // NOLINT
+    bt::BTree<int, 69> big_test_tree{}; // NOLINT
     for (const int num : std::views::iota(-512, 513)) {
         big_test_tree.insert(static_cast<int>(num));
     }
