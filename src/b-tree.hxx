@@ -10,11 +10,9 @@
 #include <climits>
 #include <concepts>
 #include <cstddef>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <stdexcept>
-#include <string>
 #include <utility>
 
 namespace my_b_tree {
@@ -177,7 +175,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         if (is_leaf()) {
             return std::nullopt;
         }
-        // std::cout << pair_result.second << "\n";
         return children_[pair_result.second + 1]->find_(key);
     }
 
