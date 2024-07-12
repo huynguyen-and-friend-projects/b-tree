@@ -200,13 +200,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         std::size_t new_node_idx = 0;
         auto new_node = std::make_unique<BTreeNode>(this->parent_);
 
-        // move keys larger than the median and (if this node has children,) the
-        // children just larger than each of those key to the new node.
+        // move the child just larger than the median (if any) to the first
+        // child pointer of the new node
         if (!this->is_leaf()) {
             new_node->inner_insert_child_at_(
                 std::move(this->children_[median_idx + 1]), 0);
             --this->n_children_;
         }
+        // move keys larger than the median and (if this node has children,) the
+        // children just larger than each of those key to the new node.
         for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
              ++this_idx) {
             new_node->inner_insert_key_at_(
@@ -229,12 +231,11 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
                                                   this->index_ + 1);
         } else {
             // this is root
-            // new root node
             auto new_root = std::make_unique<BTreeNode>();
             new_root->inner_insert_key_at_(
                 curr_bt, std::move(this->keys_[median_idx]), 0);
             --this->n_keys_;
-            // curr_bt->root is essentially this
+            // curr_bt->root_ is essentially an unique_ptr to this
             new_root->inner_insert_child_at_(std::move(curr_bt->root_), 0);
             new_root->inner_insert_child_at_(std::move(new_node), 1);
             curr_bt->root_ = std::move(new_root);
@@ -245,10 +246,10 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @brief Inserts the specified child at the specified index.
      *
      * Must satisfy the following conditions:
-     * 1. This node is not full
-     * 2. This node is not a leaf
-     * 3. The child passed in isn't a nullptr
-     * 4. index < MAX_CHILDREN_
+     * 1. This node's children array is not full
+     * 2. The child passed in isn't a nullptr
+     * 3. index < MAX_CHILDREN_
+     * 4. this->keys_[index - 1] is a valid key. (aka, n_keys_ >= index)
      *
      * @param child The specified child
      * @param index The specified index
@@ -258,6 +259,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         assert(n_children_ < MAX_CHILDREN_);
         assert(child.get() != nullptr);
         assert(index < MAX_CHILDREN_);
+        assert(n_keys_ >= index);
 
         for (long long idx = this->children_count() - 1;
              idx > static_cast<long long>(index) - 1; --idx) {
@@ -505,8 +507,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return true if the key is successfully inserted, false if there's
      * already a key of the same value inside.
      *
-     * If K is nontrivially copyable and the function returns false, the original
-     * variable K passed in would still be intact (aka, not actually moved).
+     * If K is nontrivially copyable and the function returns false, the
+     * original variable K passed in would still be intact (aka, not actually
+     * moved).
      */
     constexpr auto
     insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
@@ -526,8 +529,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
             return false;
         }
         long long index = static_cast<long long>(pair_result.second) + 1;
-        curr_node->inner_insert_key_at_(this,
-                                        std::move(key), index);
+        curr_node->inner_insert_key_at_(this, std::move(key), index);
         return true;
     }
 
