@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 namespace my_b_tree {
@@ -40,6 +41,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     // You could say it's due to laziness
     static_assert(MIN_DEG < ULONG_MAX / 2 - 1,
                   "Error, MIN_DEG must be smaller than ULONG_MAX / 2 - 1");
+
+    static constexpr bool CAN_TRIVIAL_COPY_ = std::is_trivially_copyable_v<K>;
+
     /**
      * @brief Same as BTree<K, MIN_DEG>::MAX_KEYS
      * 2 * MIN_DEG
@@ -125,12 +129,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param key The specified key
      * @return A pair:
      * - First value (bool) is whether the key was found
-     * - Second value (std::size_T):
+     * - Second value (long long):
      *   - If key is found, is the index of that key inside the array.
      *   - Else, is the index of the key just smaller than the specified key.
+     *      - So, -1 if the key is smaller than every element and max_keys()
+     * when the key is larger than every element.
      */
     [[nodiscard]] auto
-    inner_key_find_(const K& key) const noexcept -> std::pair<bool, long long> {
+    inner_key_find_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key)
+        const noexcept -> std::pair<bool, long long> {
         long long left = 0;
         long long right = n_keys_ - 1;
         long long mid = (left + right) / 2;
@@ -278,7 +285,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param key
      * @param index
      */
-    void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt, const K&& key,
+    void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
+                              std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
                               std::size_t index) noexcept {
         // assert(index < MAX_KEYS_);
 
@@ -318,7 +326,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @param key The specified key.
      */
-    void inner_insert_(BTree<K, MIN_DEG>* curr_bt, const K&& key) noexcept {
+    void
+    inner_insert_(BTree<K, MIN_DEG>* curr_bt,
+                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept {
         bool is_split = false;
         if (is_full()) {
             this->inner_split_(curr_bt);
@@ -415,6 +425,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     std::unique_ptr<BTreeNode<K, MIN_DEG>> root_{new BTreeNode<K, MIN_DEG>};
 
+    static constexpr bool CAN_TRIVIAL_COPY_ = std::is_trivially_copyable_v<K>;
+
     friend class BTreeNode<K, MIN_DEG>;
 
   public:
@@ -452,7 +464,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] constexpr auto find(const K& key) const noexcept
+    [[nodiscard]] constexpr auto
+    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
+             key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -461,11 +475,25 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         return pair_result;
     }
 
-    [[nodiscard]] constexpr auto contains(const K& key) const noexcept -> bool {
+    [[nodiscard]] constexpr auto contains(
+        std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        const noexcept -> bool {
         return root_->find_(key).has_value();
     }
 
-    constexpr auto insert(const K&& key) noexcept -> bool {
+    /**
+     * @brief Inserts the specified key into the BTree.
+     *
+     * If K is not trivially copyable, K is passed by rvalue reference.
+     * Otherwise, K is copied.
+     *
+     * @param key The specified key.
+     * @return true if the key is successfully inserted, false if there's
+     * already a key of the same value inside.
+     */
+    constexpr auto
+    insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
+               key) noexcept -> bool {
         BTreeNode<K, MIN_DEG>* curr_node = root_.get();
 
         std::pair<bool, std::size_t> pair_result =
@@ -477,10 +505,28 @@ template <Key K, std::size_t MIN_DEG> class BTree {
             curr_node = curr_node->children_[pair_result.second + 1].get();
             pair_result = curr_node->inner_key_find_(key);
         }
+        if (pair_result.first) {
+            return false;
+        }
         long long index = static_cast<long long>(pair_result.second) + 1;
         curr_node->inner_insert_key_at_(const_cast<BTree*>(this),
                                         std::move(key), index);
         return true;
+    }
+
+    /**
+     * @brief Inserts the specified key into the BTree.
+     *
+     * For trivially copyable K, this is identical to insert(). For nontrivially
+     * copyable K, this explicitly copies K, retaining the original variable.
+     *
+     * @param key The specified key
+     * @return true if the key is successfully inserted, false if there's
+     * already a key of the same value inside.
+     */
+    constexpr auto insert_copy(const K& key) noexcept -> bool {
+        K pass_in = key;
+        return insert(std::move(pass_in));
     }
 };
 
