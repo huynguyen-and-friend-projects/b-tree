@@ -271,7 +271,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     /**
      * @brief Inserts the specified key to the specified position in this node's
-     * inner array.
+     * inner array if this node's inner array is not yet full.
      *
      * Basically inner_insert_ but does not need to search for the index to
      * insert.
@@ -280,7 +280,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - If the specified key is smaller than this node's median, insert it into
      * this node. Otherwise, insert into the new node.
      *
-     * index must (of course) be smaller than MAX_KEYS_
+     * Must satisfy the following conditions:
+     * 1. If this node isn't full, index < MAX_KEYS_
+     * 2. If this node is full, index <= MAX_KEYS_
      *
      * @param key
      * @param index
@@ -288,7 +290,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
                               std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
                               std::size_t index) noexcept {
-        // assert(index < MAX_KEYS_);
+        assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
 
         bool is_split = false;
         if (is_full()) {
@@ -299,12 +301,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         // parent_->keys_[this->index_] points to the key just larger than this
         // node.
         // Also, in no situation shall key == [any key in parent's key array]
-        if (is_split && (this->parent_ != nullptr &&
-                         key > this->parent_->keys_[this->index_])) {
-            // insert into the new node instead.
-            // HACK: new node is assumed to be this node's right neighbour
-            this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(key));
+        if (is_split) {
+            if (key > this->parent_->keys_[this->index_]) {
+                // insert into the new node instead.
+                // HACK: new node is assumed to be this node's right neighbour
+                this->parent_->children_[this->index_ + 1]->inner_insert_(
+                    curr_bt, std::move(key));
+                return;
+            }
+            this->inner_insert_(curr_bt, std::move(key));
             return;
         }
 
@@ -317,8 +322,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     }
 
     /**
-     * @brief Insert the specified key into this node's inner array if this node
-     * is not yet full. Otherwise, split this node, then insert the key.
+     * @brief Search for the position inside this node's inner array to insert
+     * the specified key, then insert it if this node is not yet full.
+     * Otherwise, split this node, then insert the key.
      *
      * In case of splitting:
      * - If the specified key is smaller than this node's median, insert it into
@@ -338,11 +344,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         // parent_->keys_[this->index_] points to the key just larger than this
         // node.
         // Also, in no situation shall key == [any key in parent's key array]
-        if (is_split && key > this->parent_->keys_[this->index_]) {
-            // insert into the new node instead.
-            // HACK: new node is assumed to be this node's right neighbour
-            this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(key));
+        if (is_split) {
+            if (key > this->parent_->keys_[this->index_]) {
+                // insert into the new node instead.
+                // HACK: new node is assumed to be this node's right neighbour
+                this->parent_->children_[this->index_ + 1]->inner_insert_(
+                    curr_bt, std::move(key));
+                return;
+            }
+            this->inner_insert_(curr_bt, std::move(key));
             return;
         }
         long long insert_idx = inner_key_find_(key).second + 1;
