@@ -494,6 +494,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @param key The specified key.
      * @return true if the key is successfully inserted, false if there's
      * already a key of the same value inside.
+     *
+     * If K is nontrivially copyable and the function returns false, the original
+     * variable K passed in would still be intact (aka, not actually moved).
      */
     constexpr auto
     insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
