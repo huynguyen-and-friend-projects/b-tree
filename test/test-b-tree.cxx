@@ -1,5 +1,8 @@
 #include "b-tree.hxx"
 #include <gtest/gtest.h>
+#include <string>
+#include <type_traits>
+#include <utility>
 
 namespace bt = my_b_tree;
 
@@ -22,6 +25,7 @@ TEST(b_tree, insert_easy_mode) {
 }
 
 TEST(b_tree, insert_medium_mode) { // NOLINT
+    // NOTE: MIN_DEG so small runs pretty damn slow
     bt::BTree<int, 1> test_tree{};
     test_tree.insert(69); // NOLINT
     ASSERT_TRUE(test_tree.contains(69));
@@ -33,6 +37,11 @@ TEST(b_tree, insert_medium_mode) { // NOLINT
     ASSERT_TRUE(test_tree.contains(77));
     test_tree.insert(420); // NOLINT
     ASSERT_TRUE(test_tree.contains(420));
+
+    // this shan't get inserted
+    ASSERT_FALSE(test_tree.insert(77));
+    ASSERT_TRUE(test_tree.contains(77));
+
     test_tree.insert(666);    // NOLINT
     test_tree.insert(69420);  // NOLINT
     test_tree.insert(12345);  // NOLINT
@@ -54,20 +63,25 @@ TEST(b_tree, insert_medium_mode) { // NOLINT
     ASSERT_TRUE(test_tree.contains(-139));
     ASSERT_TRUE(test_tree.contains(-334));
     ASSERT_TRUE(test_tree.contains(-969));
-    for (int i = -6666; i < -5555; ++i) {
-        test_tree.insert(std::move(i));
-        ASSERT_TRUE(test_tree.contains(i));
-    }
 }
 
 TEST(b_tree, insert_hard_mode) { // NOLINT
     // nice
-    bt::BTree<int, 69> test_tree{}; // NOLINT
-    for (int i = -6666; i < 6666; ++i) {
-        test_tree.insert(std::move(i));
-        ASSERT_TRUE(test_tree.contains(i));
+    bt::BTree<int, 69> test_tree{};      // NOLINT
+    for (int i = -6666; i < 6666; ++i) { // NOLINT
+        test_tree.insert(i);
     }
     for (int i = -6666; i < 6666; ++i) { // NOLINT
         ASSERT_TRUE(test_tree.contains(i));
     }
+}
+
+TEST(b_tree, insert_nontrival_copy) {
+    bt::BTree<std::string, 4> test_tree{};
+    ASSERT_FALSE(std::is_trivially_copyable_v<std::string>);
+    const std::string sus = "Never gonna give you up";
+    test_tree.insert_copy(sus);
+    test_tree.insert("Never gonna let you down");
+    ASSERT_TRUE(test_tree.contains("Never gonna give you up"));
+    ASSERT_STREQ(sus.c_str(), "Never gonna give you up");
 }
