@@ -188,12 +188,18 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         // in case you don't listen.
         assert(is_full());
 
-        std::size_t median_idx = n_keys_ / 2;
+        std::size_t median_idx = (n_keys_ - 1) / 2;
         std::size_t max_idx = n_keys_ - 1;
         std::size_t new_node_idx = 0;
         auto new_node = std::make_unique<BTreeNode>(this->parent_);
+
         // move keys larger than the median and (if this node has children,) the
         // children just larger than each of those key to the new node.
+        if (!this->is_leaf()) {
+            new_node->inner_insert_child_at_(
+                std::move(this->children_[median_idx + 1]), 0);
+            --this->n_children_;
+        }
         for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
              ++this_idx) {
             new_node->inner_insert_key_at_(
@@ -205,11 +211,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
                 --this->n_children_;
             }
             ++new_node_idx;
-        }
-        if (!this->is_leaf()) {
-            new_node->inner_insert_child_at_(
-                std::move(this->children_[median_idx + 1]), 0);
-            --this->n_children_;
         }
 
         if (this->parent_ != nullptr) {
@@ -251,8 +252,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         assert(child.get() != nullptr);
         assert(index < MAX_CHILDREN_);
 
-        for (std::size_t idx = this->children_count() - 1; idx > index - 1;
-             --idx) {
+        for (long long idx = this->children_count() - 1;
+             idx > static_cast<long long>(index) - 1; --idx) {
             this->children_[idx + 1] = std::move(this->children_[idx]);
             this->children_[idx + 1]->index_ = idx + 1;
         }
@@ -336,7 +337,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         }
         long long insert_idx = inner_key_find_(key).second + 1;
 
-        for (long long idx = n_keys_ - 1; idx > insert_idx - 1; ++idx) {
+        for (long long idx = n_keys_ - 1; idx > insert_idx - 1; --idx) {
             keys_[idx + 1] = std::move(keys_[idx]);
         }
         keys_[insert_idx] = std::move(key);
