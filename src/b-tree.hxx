@@ -171,13 +171,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *   - First value is the pointer to the node containing the specified key.
      *   - Second value is the index of that key.
      */
-    [[nodiscard]] auto find_(const K& key) const noexcept
-        -> std::optional<std::pair<BTreeNode*, std::size_t>> {
+    [[nodiscard]] auto
+    find_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
+        -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
         auto pair_result = inner_key_find_(key);
         // found the key
         if (pair_result.first) {
-            return std::make_pair(const_cast<BTreeNode*>(this), // NOLINT
-                                  pair_result.second);
+            return std::make_pair(this, pair_result.second);
         }
         if (is_leaf()) {
             return std::nullopt;
