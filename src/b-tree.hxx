@@ -475,6 +475,10 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         return pair_result;
     }
 
+    /**
+     * @param key The specified key
+     * @return Whether the BTree contains the specified key.
+     */
     [[nodiscard]] constexpr auto contains(
         std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
         const noexcept -> bool {
@@ -509,7 +513,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
             return false;
         }
         long long index = static_cast<long long>(pair_result.second) + 1;
-        curr_node->inner_insert_key_at_(const_cast<BTree*>(this),
+        curr_node->inner_insert_key_at_(this,
                                         std::move(key), index);
         return true;
     }
