@@ -21,8 +21,8 @@ if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
 endif()
 
 if(USE_LLD)
-    find_program(LLD Lld REQUIRED)
-    if(LLD STREQUAL "lld-NOTFOUND")
+    find_program(LLD lld REQUIRED)
+    if(NOT LLD)
         message(
             FATAL_ERROR
                 "Error, LLD not found, please either turn off option USE_LLD or add directory of LLD to PATH"

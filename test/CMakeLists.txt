@@ -20,3 +20,7 @@ if(ENABLE_ASAN)
     target_link_libraries(test-exe PRIVATE asan)
 endif()
 gtest_discover_tests(test-exe)
+add_custom_target(
+    test-all
+    COMMAND ctest ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Run all the tests")
