@@ -386,43 +386,42 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         return n_keys_;
     }
 
-    [[nodiscard]] constexpr auto
-    children_count() const noexcept -> std::size_t {
+    [[nodiscard]] auto children_count() const noexcept -> std::size_t {
         return n_children_;
     }
 
     /**
      * @return Whether this node has no child.
      */
-    [[nodiscard]] constexpr auto is_leaf() const noexcept -> bool {
+    [[nodiscard]] auto is_leaf() const noexcept -> bool {
         return n_children_ == 0;
     }
 
     /**
      * This is just an alternative to BTree::MAX_KEYS
      */
-    [[nodiscard]] constexpr auto max_keys() const noexcept -> std::size_t {
+    [[nodiscard]] auto max_keys() const noexcept -> std::size_t {
         return MAX_KEYS_;
     }
 
     /**
      * This is just an alternative to BTree::MAX_CHILDREN
      */
-    [[nodiscard]] constexpr auto max_children() const noexcept -> std::size_t {
+    [[nodiscard]] auto max_children() const noexcept -> std::size_t {
         return MAX_CHILDREN_;
     }
 
     /**
      * @return Whether this node's key array is fully occupied.
      */
-    [[nodiscard]] constexpr auto is_full() const noexcept -> bool {
+    [[nodiscard]] auto is_full() const noexcept -> bool {
         return n_keys_ == keys_.size();
     }
 
     /**
      * @return Whether this node is a BTree's root.
      */
-    [[nodiscard]] constexpr auto is_root() const noexcept -> bool {
+    [[nodiscard]] auto is_root() const noexcept -> bool {
         return parent_ == nullptr;
     }
 };
@@ -464,8 +463,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      *
      * The root should not be manually modified.
      */
-    [[nodiscard]] constexpr auto
-    get_root() const -> const BTreeNode<K, MIN_DEG>* {
+    [[nodiscard]] auto get_root() const -> const BTreeNode<K, MIN_DEG>* {
         return root_.get();
     }
 
@@ -476,9 +474,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] constexpr auto
-    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-             key) const noexcept
+    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
+                                               K, const K&> key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -491,7 +488,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @param key The specified key
      * @return Whether the BTree contains the specified key.
      */
-    [[nodiscard]] constexpr auto contains(
+    [[nodiscard]] auto contains(
         std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
         const noexcept -> bool {
         return root_->find_(key).has_value();
@@ -511,9 +508,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * original variable K passed in would still be intact (aka, not actually
      * moved).
      */
-    constexpr auto
-    insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
-               key) noexcept -> bool {
+    auto insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
+                    key) noexcept -> bool {
         BTreeNode<K, MIN_DEG>* curr_node = root_.get();
 
         std::pair<bool, std::size_t> pair_result =
@@ -543,7 +539,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return true if the key is successfully inserted, false if there's
      * already a key of the same value inside.
      */
-    constexpr auto insert_copy(const K& key) noexcept -> bool {
+    auto insert_copy(const K& key) noexcept -> bool {
         K pass_in = key;
         return insert(std::move(pass_in));
     }
