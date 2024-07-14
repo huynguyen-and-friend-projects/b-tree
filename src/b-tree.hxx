@@ -541,9 +541,11 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return true if the key is successfully inserted, false if there's
      * already a key of the same value inside.
      */
-    auto insert_copy(const K& key) noexcept -> bool {
-        K pass_in = key;
-        return insert(std::move(pass_in));
+    auto
+    insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
+                    key) noexcept -> bool {
+        K pass_in{key};
+        return insert(pass_in);
     }
 };
 
