@@ -376,11 +376,59 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         }
     }
     BTreeNode(BTreeNode&&) noexcept = default;
-    // TODO: (unimportant) write a valid copy method
-    BTreeNode(const BTreeNode& cpy) = delete;
+    /**
+     * WARNING: VERY EXPENSIVE OPERATION.
+     */
+    BTreeNode(const BTreeNode& cpy) : n_keys_(cpy.n_keys_), n_children_(cpy.n_children_) {
+        for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
+            this->keys_[idx] = cpy.keys_[idx];
+            if(cpy.is_leaf()){
+                continue;
+            }
+
+            BTreeNode cpy_child = *cpy.children_[idx].get();
+            cpy_child.parent_ = this;
+            this->children_[idx] =
+                std::make_unique<BTreeNode>(std::move(cpy_child));
+        }
+        if(cpy.is_leaf()){
+            return;
+        }
+        BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
+        last_cpy_child.parent_ = this;
+        this->children_[n_children_ - 1] =
+            std::make_unique<BTreeNode>(std::move(last_cpy_child));
+    }
     auto operator=(BTreeNode&&) noexcept -> BTreeNode& = default;
-    // TODO: (unimportant) write a valid copy method
-    auto operator=(const BTreeNode&) -> BTreeNode& = delete;
+    /**
+     * WARNING: VERY EXPENSIVE OPERATION.
+     */
+    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode& {
+        if (&cpy == this) {
+            return *this;
+        }
+
+        this->n_keys_ = cpy.n_keys_;
+        this->n_children_ = cpy.n_children_;
+        for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
+            this->keys_[idx] = cpy.keys_[idx];
+            if(cpy.is_leaf()){
+                continue;
+            }
+            BTreeNode cpy_child = *cpy.children_[idx].get();
+            cpy_child.parent_ = this;
+            this->children_[idx] =
+                std::make_unique<BTreeNode>(std::move(cpy_child));
+        }
+        if(cpy.is_leaf()){
+            return *this;
+        }
+
+        BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
+        last_cpy_child.parent_ = this;
+        this->children_[n_children_ - 1] =
+            std::make_unique<BTreeNode>(std::move(last_cpy_child));
+    }
     ~BTreeNode() noexcept = default;
 
     [[nodiscard]] auto keys_count() const noexcept -> std::size_t {
@@ -454,9 +502,26 @@ template <Key K, std::size_t MIN_DEG> class BTree {
 
     BTree() noexcept = default;
     BTree(BTree&&) noexcept = default;
-    BTree(const BTree&) = delete;
+    /**
+     * WARNING: VERY EXPENSIVE OPERATION.
+     */
+    BTree(const BTree& cpy) {
+        // root_ always has value
+        BTreeNode<K, MIN_DEG> copy_root = *cpy.root_.get();
+        this->root_ = std::make_unique<BTreeNode<K, MIN_DEG>>(std::move(copy_root));
+    }
     auto operator=(BTree&&) noexcept -> BTree& = default;
-    auto operator=(const BTree&) -> BTree& = delete;
+    /**
+     * WARNING: VERY EXPENSIVE OPERATION.
+     */
+    auto operator=(const BTree& cpy) -> BTree& {
+        if(&cpy == *this){
+            return *this;
+        }
+        // root_ always has value
+        BTreeNode<K, MIN_DEG> copy_root = *cpy.root_.get();
+        this->root_ = std::make_unique<BTreeNode<K, MIN_DEG>>(std::move(copy_root));
+    }
     ~BTree() noexcept = default;
 
     /**
@@ -543,7 +608,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
     auto
     insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
                     key) noexcept -> bool {
-        return insert(key);
+        K pass_in = std::is_copy_assignable_v<K> ? key : K{key};
+        return insert(std::move(pass_in));
     }
 };
 
