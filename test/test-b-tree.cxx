@@ -80,14 +80,15 @@ TEST(b_tree, insert_nontrival_copy) {
     bt::BTree<std::string, 4> test_tree{};
     ASSERT_FALSE(std::is_trivially_copyable_v<std::string>);
     std::string sus = "Never gonna give you up";
-    test_tree.insert_copy(sus);
+    test_tree.insert_copy(sus); // NOLINT
     test_tree.insert("Never gonna let you down");
     ASSERT_TRUE(test_tree.contains("Never gonna give you up"));
     ASSERT_STREQ(sus.c_str(), "Never gonna give you up");
-    ASSERT_FALSE(test_tree.insert(std::move(sus)));
-    ASSERT_STREQ(sus.c_str(), "Never gonna give you up");
+    ASSERT_FALSE(test_tree.insert(std::move(sus)));       // NOLINT
+    ASSERT_STREQ(sus.c_str(), "Never gonna give you up"); // NOLINT
 
     std::string another_sus = "We know each other for so long";
-    ASSERT_TRUE(test_tree.insert(std::move(another_sus)));
-    ASSERT_STREQ(another_sus.c_str(), "");
+    ASSERT_TRUE(test_tree.insert(std::move(another_sus))); // NOLINT
+    ASSERT_STREQ(another_sus.c_str(), "");                 // NOLINT
 }
+
