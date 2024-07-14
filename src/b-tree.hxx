@@ -82,7 +82,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Non-owning pointer to parent
      *
-     * parent_ == nullptr when node is root.
+     * NOTE: parent_ == nullptr when node is root.
      */
     BTreeNode* parent_{nullptr};
 
@@ -115,11 +115,11 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * Sets index with bound-checking.
      *
-     * index must not be
+     * index must be between 0 and MAX_CHILDREN_
      */
     void set_index_(std::size_t index) {
         // in case you don't listen
-        assert(index < MAX_CHILDREN_);
+        assert(index > 0 && index < MAX_CHILDREN_);
         index_ = index;
     }
 
@@ -248,8 +248,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * Must satisfy the following conditions:
      * 1. This node's children array is not full
      * 2. The child passed in isn't a nullptr
-     * 3. index < MAX_CHILDREN_
-     * 4. this->keys_[index - 1] is a valid key. (aka, n_keys_ >= index)
+     * 3. index < MAX_CHILDREN_ and index > 0
      *
      * @param child The specified child
      * @param index The specified index
@@ -258,8 +257,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
                                 std::size_t index) noexcept {
         assert(n_children_ < MAX_CHILDREN_);
         assert(child.get() != nullptr);
-        assert(index < MAX_CHILDREN_);
-        assert(n_keys_ >= index);
+        assert(index > 0 && index < MAX_CHILDREN_);
 
         for (long long idx = this->children_count() - 1;
              idx > static_cast<long long>(index) - 1; --idx) {
@@ -285,13 +283,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * Must satisfy the following conditions:
      * 1. If this node isn't full, index < MAX_KEYS_
      * 2. If this node is full, index <= MAX_KEYS_
+     * 3. index > 0
      *
-     * @param key
-     * @param index
+     * @param key The specified key
+     * @param index The specified index
      */
     void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
                               std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
                               std::size_t index) noexcept {
+        assert(index > 0);
         assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
 
         bool is_split = false;
@@ -300,6 +300,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
             is_split = true;
         }
 
+        // after splitting, parent is not nullptr
         // parent_->keys_[this->index_] points to the key just larger than this
         // node.
         // Also, in no situation shall key == [any key in parent's key array]
@@ -343,6 +344,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
             is_split = true;
         }
 
+        // after splitting, parent is not nullptr
         // parent_->keys_[this->index_] points to the key just larger than this
         // node.
         // Also, in no situation shall key == [any key in parent's key array]
