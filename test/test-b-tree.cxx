@@ -3,10 +3,12 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <concepts>
 
 namespace bt = my_b_tree;
 
 TEST(b_tree, obvious) {
+    ASSERT_TRUE(std::movable<int>);
     const bt::BTree<int, 1> test_tree{};
     const bt::BTreeNode<int, 1>* root = test_tree.get_root();
 
@@ -73,6 +75,28 @@ TEST(b_tree, insert_hard_mode) { // NOLINT
     }
     for (int i = -6666; i < 6666; ++i) { // NOLINT
         ASSERT_TRUE(test_tree.contains(i));
+    }
+}
+
+TEST(b_tree, copy){
+    bt::BTree<int, 4> test_tree{};
+    for(int i = 0; i < 10; ++i){ // NOLINT
+        test_tree.insert(i);
+    }
+    auto copy_test_tree{test_tree};
+    for(int i = 0; i < 10; ++i){ // NOLINT
+        ASSERT_TRUE(copy_test_tree.contains(i));
+    }
+}
+
+TEST(b_tree, move){
+    bt::BTree<int, 4> test_tree{};
+    for(int i = 0; i < 10; ++i){ // NOLINT
+        test_tree.insert(i);
+    }
+    auto move_test_tree{std::move(test_tree)};
+    for(int i = 0; i < 10; ++i){ // NOLINT
+        ASSERT_TRUE(move_test_tree.contains(i));
     }
 }
 
