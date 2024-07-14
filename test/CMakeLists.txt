@@ -23,4 +23,4 @@ gtest_discover_tests(test-exe)
 add_custom_target(
     test-all
     COMMAND ctest ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Run all the tests")
+    COMMENT "Run all the tests" USES_TERMINAL)
