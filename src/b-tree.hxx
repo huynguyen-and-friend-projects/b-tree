@@ -257,7 +257,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
                                 std::size_t index) noexcept {
         assert(n_children_ < MAX_CHILDREN_);
         assert(child.get() != nullptr);
-        assert(index > 0 && index < MAX_CHILDREN_);
+        assert(index < MAX_CHILDREN_);
 
         for (long long idx = this->children_count() - 1;
              idx > static_cast<long long>(index) - 1; --idx) {
@@ -291,7 +291,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
                               std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
                               std::size_t index) noexcept {
-        assert(index > 0);
         assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
 
         bool is_split = false;
