@@ -86,6 +86,7 @@ TEST(b_tree, copy){
     auto copy_test_tree{test_tree};
     for(int i = 0; i < 10; ++i){ // NOLINT
         ASSERT_TRUE(copy_test_tree.contains(i));
+        ASSERT_TRUE(test_tree.contains(i));
     }
 }
 
