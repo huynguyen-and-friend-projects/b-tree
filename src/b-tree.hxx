@@ -24,7 +24,7 @@ namespace my_b_tree {
  * Requires to be equality-comparable and movable.
  */
 template <typename T>
-concept Key = std::equality_comparable<T> || std::movable<T>;
+concept Key = std::equality_comparable<T> && std::movable<T>;
 
 /**
  * @brief A BTree.
