@@ -519,7 +519,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     auto operator=(const BTree& cpy) noexcept -> BTree& {
         if (&cpy == this) {
-          return *this;
+            return *this;
         }
         // root_ always has value
         BTreeNode<K, MIN_DEG> copy_root = *cpy.root_.get();
