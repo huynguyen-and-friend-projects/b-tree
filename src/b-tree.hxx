@@ -104,8 +104,16 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return The minimum degree of this node.
      */
-    auto minimum_degree_() -> std::size_t {
-        return is_root() ? 1 : MIN_DEG;
+    auto minimum_degree_() -> std::size_t { return is_root() ? 1 : MIN_DEG; }
+
+    /**
+     * @brief Simply a more explicit version of n_keys_ > minimum_degree_
+     *
+     * @return Whether one key from this node can be removed without rebalancing
+     * the tree.
+     */
+    auto no_rebalance_key_removable_() -> bool {
+        return n_keys_ > minimum_degree_();
     }
 
     /**
