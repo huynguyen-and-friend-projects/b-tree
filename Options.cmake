@@ -6,6 +6,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
                                              "MinSizeRel" "RelWithDebInfo")
 
 option(USE_LLD "Use lld instead of ld for linking" OFF)
+option(ENABLE_PCH "Enable precompiled header" ON)
 option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
 option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
