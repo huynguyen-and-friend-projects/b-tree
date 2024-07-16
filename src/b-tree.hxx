@@ -94,6 +94,21 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     friend class BTree<K, MIN_DEG>;
 
     /**
+     * @brief Gets the minimum degree of this node.
+     *
+     * If the node is a root node, minimum degree is 1, otherwise, MIN_DEG.
+     *
+     * NOTE: use this when the difference between root's minimum degree
+     * and other nodes' minimum degree matters (eg, removing keys). Otherwise,
+     * simply use MIN_DEG for better performance.
+     *
+     * @return The minimum degree of this node.
+     */
+    auto minimum_degree_() -> std::size_t {
+        return is_root() ? 1 : MIN_DEG;
+    }
+
+    /**
      * @brief Sets parent of this node to be the specified node.
      *
      * This is the preferred (albeit a little slower) way to change parent node.
@@ -226,7 +241,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
-    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode&; 
+    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode&;
     ~BTreeNode() noexcept = default;
 
     [[nodiscard]] auto keys_count() const noexcept -> std::size_t {
@@ -419,7 +434,8 @@ BTreeNode<K, MIN_DEG>::BTreeNode(const BTreeNode& cpy)
 }
 
 template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K,MIN_DEG>::operator=(const BTreeNode& cpy) noexcept -> BTreeNode& {
+auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy) noexcept
+    -> BTreeNode& {
     if (&cpy == this) {
         std::swap(this->n_keys_, this->n_keys_);
         return *this;
