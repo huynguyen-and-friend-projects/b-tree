@@ -137,29 +137,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     [[nodiscard]] auto
     inner_key_find_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key)
-        const noexcept -> std::pair<bool, long long> {
-        long long left = 0;
-        long long right = n_keys_ - 1;
-        long long mid = (left + right) / 2;
-        while (left <= right) {
-            if (keys_[mid] == key) {
-                return {true, mid};
-            }
-            if (keys_[mid] < key) {
-                left = mid + 1;
-            } else {
-                right = mid - 1;
-            }
-            mid = (left + right) / 2;
-        }
-        // At this point, the pointer layout is:
-        // ... |        |       |       | ...
-        //       right    left
-        // Where the element of right pointer is smaller than key
-        // and left larger than key.
-        return {false, right};
-    }
-
+        const noexcept -> std::pair<bool, long long>;
     /**
      * @brief Finds the specified key inside this array and all children's
      * arrays
@@ -173,75 +151,14 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     [[nodiscard]] auto
     find_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
-        -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
-        auto pair_result = inner_key_find_(key);
-        // found the key
-        if (pair_result.first) {
-            return std::make_pair(this, pair_result.second);
-        }
-        if (is_leaf()) {
-            return std::nullopt;
-        }
-        return children_[pair_result.second + 1]->find_(key);
-    }
-
+        -> std::optional<std::pair<const BTreeNode*, std::size_t>>;
     /**
      * @brief (Simply) split the current node into 2, and insert the current
      * median into the parent.
      *
      * Should only be called when this node is full.
      */
-    void inner_split_(BTree<K, MIN_DEG>* curr_bt) noexcept {
-        // in case you don't listen.
-        assert(is_full());
-
-        std::size_t median_idx = (n_keys_ - 1) / 2;
-        std::size_t max_idx = n_keys_ - 1;
-        std::size_t new_node_idx = 0;
-        auto new_node = std::make_unique<BTreeNode>(this->parent_);
-
-        // move the child just larger than the median (if any) to the first
-        // child pointer of the new node
-        if (!this->is_leaf()) {
-            new_node->inner_insert_child_at_(
-                std::move(this->children_[median_idx + 1]), 0);
-            --this->n_children_;
-        }
-        // move keys larger than the median and (if this node has children,) the
-        // children just larger than each of those key to the new node.
-        for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
-             ++this_idx) {
-            new_node->inner_insert_key_at_(
-                curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
-            --this->n_keys_;
-            if (!this->is_leaf()) {
-                new_node->inner_insert_child_at_(
-                    std::move(this->children_[this_idx + 1]), new_node_idx + 1);
-                --this->n_children_;
-            }
-            ++new_node_idx;
-        }
-
-        if (this->parent_ != nullptr) {
-            // this is not root.
-            this->parent_->inner_insert_key_at_(
-                curr_bt, std::move(this->keys_[median_idx]), this->index_);
-            --this->n_keys_;
-            this->parent_->inner_insert_child_at_(std::move(new_node),
-                                                  this->index_ + 1);
-        } else {
-            // this is root
-            auto new_root = std::make_unique<BTreeNode>();
-            new_root->inner_insert_key_at_(
-                curr_bt, std::move(this->keys_[median_idx]), 0);
-            --this->n_keys_;
-            // curr_bt->root_ is essentially an unique_ptr to this
-            new_root->inner_insert_child_at_(std::move(curr_bt->root_), 0);
-            new_root->inner_insert_child_at_(std::move(new_node), 1);
-            curr_bt->root_ = std::move(new_root);
-        }
-    }
-
+    void inner_split_(BTree<K, MIN_DEG>* curr_bt) noexcept;
     /**
      * @brief Inserts the specified child at the specified index.
      *
@@ -254,21 +171,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index
      */
     void inner_insert_child_at_(std::unique_ptr<BTreeNode>&& child,
-                                std::size_t index) noexcept {
-        assert(n_children_ < MAX_CHILDREN_);
-        assert(child.get() != nullptr);
-        assert(index < MAX_CHILDREN_);
-
-        for (long long idx = n_children_ - 1;
-             idx > static_cast<long long>(index) - 1; --idx) {
-            this->children_[idx + 1] = std::move(this->children_[idx]);
-            this->children_[idx + 1]->index_ = idx + 1;
-        }
-        this->children_[index] = std::move(child);
-        this->children_[index]->set_parent_(this, index);
-        ++this->n_children_;
-    }
-
+                                std::size_t index) noexcept;
     /**
      * @brief Inserts the specified key to the specified position in this node's
      * inner array if this node's inner array is not yet full.
@@ -290,39 +193,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
                               std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
-                              std::size_t index) noexcept {
-        assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
-
-        bool is_split = false;
-        if (is_full()) {
-            this->inner_split_(curr_bt);
-            is_split = true;
-        }
-
-        // after splitting, parent is not nullptr
-        // parent_->keys_[this->index_] points to the key just larger than this
-        // node.
-        // Also, in no situation shall key == [any key in parent's key array]
-        if (is_split) {
-            if (key > this->parent_->keys_[this->index_]) {
-                // insert into the new node instead.
-                // HACK: new node is assumed to be this node's right neighbour
-                this->parent_->children_[this->index_ + 1]->inner_insert_(
-                    curr_bt, std::move(key));
-                return;
-            }
-            this->inner_insert_(curr_bt, std::move(key));
-            return;
-        }
-
-        for (long long idx = n_keys_ - 1;
-             idx > static_cast<long long>(index - 1); --idx) {
-            this->keys_[idx + 1] = std::move(this->keys_[idx]);
-        }
-        this->keys_[index] = std::move(key);
-        ++this->n_keys_;
-    }
-
+                              std::size_t index) noexcept;
     /**
      * @brief Search for the position inside this node's inner array to insert
      * the specified key, then insert it if this node is not yet full.
@@ -336,36 +207,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     void
     inner_insert_(BTree<K, MIN_DEG>* curr_bt,
-                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept {
-        bool is_split = false;
-        if (is_full()) {
-            this->inner_split_(curr_bt);
-            is_split = true;
-        }
-
-        // after splitting, parent is not nullptr
-        // parent_->keys_[this->index_] points to the key just larger than this
-        // node.
-        // Also, in no situation shall key == [any key in parent's key array]
-        if (is_split) {
-            if (key > this->parent_->keys_[this->index_]) {
-                // insert into the new node instead.
-                // HACK: new node is assumed to be this node's right neighbour
-                this->parent_->children_[this->index_ + 1]->inner_insert_(
-                    curr_bt, std::move(key));
-                return;
-            }
-            this->inner_insert_(curr_bt, std::move(key));
-            return;
-        }
-        long long insert_idx = inner_key_find_(key).second + 1;
-
-        for (long long idx = n_keys_ - 1; idx > insert_idx - 1; --idx) {
-            keys_[idx + 1] = std::move(keys_[idx]);
-        }
-        keys_[insert_idx] = std::move(key);
-        ++this->n_keys_;
-    }
+                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept;
 
   public:
     BTreeNode() noexcept = default;
@@ -379,58 +221,12 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
-    BTreeNode(const BTreeNode& cpy)
-        : n_keys_(cpy.n_keys_), n_children_(cpy.n_children_) {
-        for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
-            this->keys_[idx] = cpy.keys_[idx];
-            if (cpy.is_leaf()) {
-                continue;
-            }
-
-            BTreeNode cpy_child = *cpy.children_[idx].get();
-            cpy_child.parent_ = this;
-            this->children_[idx] =
-                std::make_unique<BTreeNode>(std::move(cpy_child));
-        }
-        if (cpy.is_leaf()) {
-            return;
-        }
-        BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
-        last_cpy_child.parent_ = this;
-        this->children_[n_children_ - 1] =
-            std::make_unique<BTreeNode>(std::move(last_cpy_child));
-    }
+    BTreeNode(const BTreeNode& cpy);
     auto operator=(BTreeNode&&) noexcept -> BTreeNode& = default;
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
-    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode& {
-        if (&cpy == this) {
-            std::swap(this->n_keys_, this->n_keys_);
-            return *this;
-        }
-
-        this->n_keys_ = cpy.n_keys_;
-        this->n_children_ = cpy.n_children_;
-        for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
-            this->keys_[idx] = cpy.keys_[idx];
-            if (cpy.is_leaf()) {
-                continue;
-            }
-            BTreeNode cpy_child = *cpy.children_[idx].get();
-            cpy_child.parent_ = this;
-            this->children_[idx] =
-                std::make_unique<BTreeNode>(std::move(cpy_child));
-        }
-        if (cpy.is_leaf()) {
-            return *this;
-        }
-
-        BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
-        last_cpy_child.parent_ = this;
-        this->children_[n_children_ - 1] =
-            std::make_unique<BTreeNode>(std::move(last_cpy_child));
-    }
+    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode&; 
     ~BTreeNode() noexcept = default;
 
     [[nodiscard]] auto keys_count() const noexcept -> std::size_t {
@@ -522,6 +318,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
             return *this;
         }
         // root_ always has value
+        assert(cpy.root_ != nullptr);
         BTreeNode<K, MIN_DEG> copy_root = *cpy.root_.get();
         this->root_ =
             std::make_unique<BTreeNode<K, MIN_DEG>>(std::move(copy_root));
@@ -579,26 +376,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * moved).
      */
     auto insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
-                    key) noexcept -> bool {
-        BTreeNode<K, MIN_DEG>* curr_node = root_.get();
-
-        std::pair<bool, std::size_t> pair_result =
-            curr_node->inner_key_find_(key);
-        while (!curr_node->is_leaf()) {
-            if (pair_result.first) {
-                return false;
-            }
-            curr_node = curr_node->children_[pair_result.second + 1].get();
-            pair_result = curr_node->inner_key_find_(key);
-        }
-        if (pair_result.first) {
-            return false;
-        }
-        long long index = static_cast<long long>(pair_result.second) + 1;
-        curr_node->inner_insert_key_at_(this, std::move(key), index);
-        return true;
-    }
-
+                    key) noexcept -> bool;
     /**
      * @brief Inserts the specified key into the BTree.
      *
@@ -616,6 +394,262 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         return insert(std::move(pass_in));
     }
 };
+
+template <Key K, std::size_t MIN_DEG>
+BTreeNode<K, MIN_DEG>::BTreeNode(const BTreeNode& cpy)
+    : n_keys_(cpy.n_keys_), n_children_(cpy.n_children_) {
+    for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
+        this->keys_[idx] = cpy.keys_[idx];
+        if (cpy.is_leaf()) {
+            continue;
+        }
+
+        BTreeNode cpy_child = *cpy.children_[idx].get();
+        cpy_child.parent_ = this;
+        this->children_[idx] =
+            std::make_unique<BTreeNode>(std::move(cpy_child));
+    }
+    if (cpy.is_leaf()) {
+        return;
+    }
+    BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
+    last_cpy_child.parent_ = this;
+    this->children_[n_children_ - 1] =
+        std::make_unique<BTreeNode>(std::move(last_cpy_child));
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K,MIN_DEG>::operator=(const BTreeNode& cpy) noexcept -> BTreeNode& {
+    if (&cpy == this) {
+        std::swap(this->n_keys_, this->n_keys_);
+        return *this;
+    }
+
+    this->n_keys_ = cpy.n_keys_;
+    this->n_children_ = cpy.n_children_;
+    for (std::size_t idx = 0; idx < cpy.n_keys_; ++idx) {
+        this->keys_[idx] = cpy.keys_[idx];
+        if (cpy.is_leaf()) {
+            continue;
+        }
+        BTreeNode cpy_child = *cpy.children_[idx].get();
+        cpy_child.parent_ = this;
+        this->children_[idx] =
+            std::make_unique<BTreeNode>(std::move(cpy_child));
+    }
+    if (cpy.is_leaf()) {
+        return *this;
+    }
+
+    BTreeNode last_cpy_child = *cpy.children_[cpy.n_children_ - 1].get();
+    last_cpy_child.parent_ = this;
+    this->children_[n_children_ - 1] =
+        std::make_unique<BTreeNode>(std::move(last_cpy_child));
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt) noexcept {
+    // in case you don't listen.
+    assert(is_full());
+
+    std::size_t median_idx = (n_keys_ - 1) / 2;
+    std::size_t max_idx = n_keys_ - 1;
+    std::size_t new_node_idx = 0;
+    auto new_node = std::make_unique<BTreeNode>(this->parent_);
+
+    // move the child just larger than the median (if any) to the first
+    // child pointer of the new node
+    if (!this->is_leaf()) {
+        new_node->inner_insert_child_at_(
+            std::move(this->children_[median_idx + 1]), 0);
+        --this->n_children_;
+    }
+    // move keys larger than the median and (if this node has children,) the
+    // children just larger than each of those key to the new node.
+    for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
+         ++this_idx) {
+        new_node->inner_insert_key_at_(
+            curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
+        --this->n_keys_;
+        if (!this->is_leaf()) {
+            new_node->inner_insert_child_at_(
+                std::move(this->children_[this_idx + 1]), new_node_idx + 1);
+            --this->n_children_;
+        }
+        ++new_node_idx;
+    }
+
+    if (this->parent_ != nullptr) {
+        // this is not root.
+        this->parent_->inner_insert_key_at_(
+            curr_bt, std::move(this->keys_[median_idx]), this->index_);
+        --this->n_keys_;
+        this->parent_->inner_insert_child_at_(std::move(new_node),
+                                              this->index_ + 1);
+    } else {
+        // this is root
+        auto new_root = std::make_unique<BTreeNode>();
+        new_root->inner_insert_key_at_(curr_bt,
+                                       std::move(this->keys_[median_idx]), 0);
+        --this->n_keys_;
+        // curr_bt->root_ is essentially an unique_ptr to this
+        new_root->inner_insert_child_at_(std::move(curr_bt->root_), 0);
+        new_root->inner_insert_child_at_(std::move(new_node), 1);
+        curr_bt->root_ = std::move(new_root);
+    }
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::inner_key_find_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
+    -> std::pair<bool, long long> {
+
+    long long left = 0;
+    long long right = n_keys_ - 1;
+    long long mid = (left + right) / 2;
+    while (left <= right) {
+        if (keys_[mid] == key) {
+            return {true, mid};
+        }
+        if (keys_[mid] < key) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+        mid = (left + right) / 2;
+    }
+    // At this point, the pointer layout is:
+    // ... |        |       |       | ...
+    //       right    left
+    // Where the element of right pointer is smaller than key
+    // and left larger than key.
+    return {false, right};
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::find_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
+    -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
+    auto pair_result = inner_key_find_(key);
+    // found the key
+    if (pair_result.first) {
+        return std::make_pair(this, pair_result.second);
+    }
+    if (is_leaf()) {
+        return std::nullopt;
+    }
+    return children_[pair_result.second + 1]->find_(key);
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
+    std::unique_ptr<BTreeNode>&& child, std::size_t index) noexcept {
+    assert(n_children_ < MAX_CHILDREN_);
+    assert(child.get() != nullptr);
+    assert(index < MAX_CHILDREN_);
+
+    for (long long idx = n_children_ - 1;
+         idx > static_cast<long long>(index) - 1; --idx) {
+        this->children_[idx + 1] = std::move(this->children_[idx]);
+        this->children_[idx + 1]->index_ = idx + 1;
+    }
+    this->children_[index] = std::move(child);
+    this->children_[index]->set_parent_(this, index);
+    ++this->n_children_;
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
+    BTree<K, MIN_DEG>* curr_bt,
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
+    std::size_t index) noexcept {
+    assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
+
+    bool is_split = false;
+    if (is_full()) {
+        this->inner_split_(curr_bt);
+        is_split = true;
+    }
+
+    // after splitting, parent is not nullptr
+    // parent_->keys_[this->index_] points to the key just larger than this
+    // node.
+    // Also, in no situation shall key == [any key in parent's key array]
+    if (is_split) {
+        if (key > this->parent_->keys_[this->index_]) {
+            // insert into the new node instead.
+            // HACK: new node is assumed to be this node's right neighbour
+            this->parent_->children_[this->index_ + 1]->inner_insert_(
+                curr_bt, std::move(key));
+            return;
+        }
+        this->inner_insert_(curr_bt, std::move(key));
+        return;
+    }
+
+    for (long long idx = n_keys_ - 1; idx > static_cast<long long>(index - 1);
+         --idx) {
+        this->keys_[idx + 1] = std::move(this->keys_[idx]);
+    }
+    this->keys_[index] = std::move(key);
+    ++this->n_keys_;
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::inner_insert_(
+    BTree<K, MIN_DEG>* curr_bt,
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept {
+    bool is_split = false;
+    if (is_full()) {
+        this->inner_split_(curr_bt);
+        is_split = true;
+    }
+
+    // after splitting, parent is not nullptr
+    // parent_->keys_[this->index_] points to the key just larger than this
+    // node.
+    // Also, in no situation shall key == [any key in parent's key array]
+    if (is_split) {
+        if (key > this->parent_->keys_[this->index_]) {
+            // insert into the new node instead.
+            // HACK: new node is assumed to be this node's right neighbour
+            this->parent_->children_[this->index_ + 1]->inner_insert_(
+                curr_bt, std::move(key));
+            return;
+        }
+        this->inner_insert_(curr_bt, std::move(key));
+        return;
+    }
+    long long insert_idx = inner_key_find_(key).second + 1;
+
+    for (long long idx = n_keys_ - 1; idx > insert_idx - 1; --idx) {
+        keys_[idx + 1] = std::move(keys_[idx]);
+    }
+    keys_[insert_idx] = std::move(key);
+    ++this->n_keys_;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTree<K, MIN_DEG>::insert(
+    std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) noexcept
+    -> bool {
+    BTreeNode<K, MIN_DEG>* curr_node = root_.get();
+
+    std::pair<bool, std::size_t> pair_result = curr_node->inner_key_find_(key);
+    while (!curr_node->is_leaf()) {
+        if (pair_result.first) {
+            return false;
+        }
+        curr_node = curr_node->children_[pair_result.second + 1].get();
+        pair_result = curr_node->inner_key_find_(key);
+    }
+    if (pair_result.first) {
+        return false;
+    }
+    long long index = static_cast<long long>(pair_result.second) + 1;
+    curr_node->inner_insert_key_at_(this, std::move(key), index);
+    return true;
+}
 
 } // namespace my_b_tree
 
