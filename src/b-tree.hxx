@@ -464,6 +464,48 @@ auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy) noexcept
 }
 
 template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::inner_key_find_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
+    -> std::pair<bool, long long> {
+
+    long long left = 0;
+    long long right = n_keys_ - 1;
+    long long mid = (left + right) / 2;
+    while (left <= right) {
+        if (keys_[mid] == key) {
+            return {true, mid};
+        }
+        if (keys_[mid] < key) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+        mid = (left + right) / 2;
+    }
+    // At this point, the pointer layout is:
+    // ... |        |       |       | ...
+    //       right    left
+    // Where the element of right pointer is smaller than key
+    // and left larger than key.
+    return {false, right};
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::find_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
+    -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
+    auto pair_result = inner_key_find_(key);
+    // found the key
+    if (pair_result.first) {
+        return std::make_pair(this, pair_result.second);
+    }
+    if (is_leaf()) {
+        return std::nullopt;
+    }
+    return children_[pair_result.second + 1]->find_(key);
+}
+
+template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt) noexcept {
     // in case you don't listen.
     assert(is_full());
@@ -513,48 +555,6 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt) noexcept {
         new_root->inner_insert_child_at_(std::move(new_node), 1);
         curr_bt->root_ = std::move(new_root);
     }
-}
-
-template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::inner_key_find_(
-    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
-    -> std::pair<bool, long long> {
-
-    long long left = 0;
-    long long right = n_keys_ - 1;
-    long long mid = (left + right) / 2;
-    while (left <= right) {
-        if (keys_[mid] == key) {
-            return {true, mid};
-        }
-        if (keys_[mid] < key) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-        mid = (left + right) / 2;
-    }
-    // At this point, the pointer layout is:
-    // ... |        |       |       | ...
-    //       right    left
-    // Where the element of right pointer is smaller than key
-    // and left larger than key.
-    return {false, right};
-}
-
-template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::find_(
-    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
-    -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
-    auto pair_result = inner_key_find_(key);
-    // found the key
-    if (pair_result.first) {
-        return std::make_pair(this, pair_result.second);
-    }
-    if (is_leaf()) {
-        return std::nullopt;
-    }
-    return children_[pair_result.second + 1]->find_(key);
 }
 
 template <Key K, std::size_t MIN_DEG>
