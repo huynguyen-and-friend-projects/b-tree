@@ -112,7 +112,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return Whether one key from this node can be removed without rebalancing
      * the tree.
      */
-    auto no_rebalance_key_removable_() -> bool {
+    auto no_rebalance_removable_() -> bool {
         return n_keys_ > minimum_degree_();
     }
 
