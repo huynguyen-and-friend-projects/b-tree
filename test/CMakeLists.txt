@@ -20,6 +20,9 @@ include(GoogleTest)
 
 add_executable(test-exe test-b-tree.cxx)
 target_link_libraries(test-exe PRIVATE b-tree compile-opts GTest::gtest_main)
+if(ENABLE_PCH)
+    target_precompile_headers(test-exe PRIVATE <gtest/gtest.h>)
+endif()
 if(ENABLE_ASAN)
     # I think this is discouraged by the devs, but it wouldn't run without this
     # option.
