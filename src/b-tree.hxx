@@ -269,22 +269,28 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
   public:
     BTreeNode() noexcept = default;
+
     explicit BTreeNode(BTreeNode* parent) : parent_(parent) {
         if (parent == this) {
             throw std::invalid_argument(
                 "Expected parent pointer to NOT be the same as this");
         }
     }
+
     BTreeNode(BTreeNode&&) noexcept = default;
+
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
     BTreeNode(const BTreeNode& cpy);
+
     auto operator=(BTreeNode&&) noexcept -> BTreeNode& = default;
+
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
     auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode&;
+
     ~BTreeNode() noexcept = default;
 
     [[nodiscard]] auto keys_count() const noexcept -> std::size_t {
@@ -357,7 +363,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
     static constexpr std::size_t MAX_CHILDREN = MAX_KEYS + 1;
 
     BTree() noexcept = default;
+
     BTree(BTree&&) noexcept = default;
+
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
@@ -367,7 +375,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         this->root_ =
             std::make_unique<BTreeNode<K, MIN_DEG>>(std::move(copy_root));
     }
+
     auto operator=(BTree&&) noexcept -> BTree& = default;
+
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
@@ -381,6 +391,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         this->root_ =
             std::make_unique<BTreeNode<K, MIN_DEG>>(std::move(copy_root));
     }
+
     ~BTree() noexcept = default;
 
     /**
