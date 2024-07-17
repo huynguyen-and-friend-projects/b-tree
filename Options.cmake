@@ -5,6 +5,7 @@ set(CMAKE_BUILD_TYPE
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
                                              "MinSizeRel" "RelWithDebInfo")
 
+option(USE_CCACHE "Use ccache" OFF)
 option(USE_LLD "Use lld instead of ld for linking" OFF)
 option(ENABLE_PCH "Enable precompiled header" ON)
 option(ENABLE_TESTING "Enable Google test" ON)
@@ -13,6 +14,17 @@ option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
 option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
 
 # configure accordingly to options
+if(ENABLE_CCACHE)
+    find_program(CCACHE ccache)
+    if(NOT CCACHE)
+        message("Cannot find ccache")
+    else()
+        message("Found ccache and is using it")
+        set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE})
+        set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
+    endif()
+endif()
+
 if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
     if(MSVC)
         target_compile_options(compile-opts INTERFACE "/Od")
