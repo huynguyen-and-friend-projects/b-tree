@@ -387,8 +387,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
     /**
      * @brief Inserts the specified key into the BTree.
      *
-     * If K is not trivially copyable, K is passed by rvalue reference.
-     * Otherwise, K is copied.
+     * If K is not trivially copyable, K is moved. Otherwise, K is copied.
      *
      * @param key The specified key.
      * @return true if the key is successfully inserted, false if there's
@@ -415,7 +414,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     auto
     insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-                    key) noexcept -> bool {
+                    key) noexcept -> std::enable_if_t<std::copyable<K>, bool> {
         K pass_in = std::is_copy_assignable_v<K> ? key : K{key};
         return insert(std::move(pass_in));
     }
