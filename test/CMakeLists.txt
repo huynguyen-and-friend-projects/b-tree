@@ -1,12 +1,16 @@
 enable_testing()
-find_library(GTEST GTest)
-if(NOT GTEST)
+find_package(GTest)
+if(NOT GTest_DIR)
+    message("GTest NOT found. Proceed to installation")
     # download the dependency
     include(FetchContent)
     FetchContent_Declare(
         GTEST
         GIT_REPOSITORY https://github.com/google/googletest
         GIT_TAG f8d7d77) # v1.14.0
+    set(gtest_force_shared_crt
+        ON
+        CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(GTEST)
 endif()
 
