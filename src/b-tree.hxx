@@ -406,6 +406,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * For trivially copyable K, this is identical to insert(). For nontrivially
      * copyable K, this explicitly copies K, retaining the original variable.
      *
+     * NOTE: if K is trivially copyable, the "usual" insert() method is more
+     * performant, because at the end, this method just calls insert()
+     *
      * @param key The specified key
      * @return true if the key is successfully inserted, false if there's
      * already a key of the same value inside.
