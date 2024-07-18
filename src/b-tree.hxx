@@ -267,6 +267,186 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     inner_insert_(BTree<K, MIN_DEG>* curr_bt,
                   std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept;
 
+    /**
+     * @brief Takes the separator between this node and its left neighbour, and
+     * take the left child's largest key to be the new separator.
+     *
+     * Must only be called when:
+     * 1. There exists a left neighbour.
+     * 2. The left neighbour's number of keys is at least one more than the
+     * minimum degree.
+     * 3. This node (and consequently its left neighbour) is not root (aka, has
+     * parent).
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * @return The old separator.
+     */
+    auto borrow_left_()
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+    /**
+     * @brief Takes the separator between this node and its right neighbour, and
+     * take the right child's smallest key to be the new separator.
+     *
+     * Must only be called when:
+     * 1. There exists a right neighbour.
+     * 2. The right neigbbour's number of keys is at least one more than the
+     * minimum degree.
+     * 3. This node (and consequently its right neighbour) is not root (aka, has
+     * parent).
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * @return The old separator.
+     */
+    auto borrow_right_()
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+
+    /**
+     * @brief Merge with the node right of this node.
+     *
+     * The new node's key layout is the following:
+     * [keys of this] [separator] [keys of right]
+     *
+     * Must only be called when:
+     * 1. This node (and its right neighbour consequently) are leaves.
+     * 2. This node has a right neighbour (aka, this->index_ <
+     * parent->n_children_ - 1)
+     * 3. Both this node and its right neighbour are at or below minimum degree.
+     *
+     * The current BTree is passed in, in the case this causes a merge happening
+     * when the root only has 1 key left, so a new root is updated.
+     */
+    void leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
+
+    /**
+     * @brief Merge with the node right of this node.
+     *
+     * The new node's key layout is the following:
+     * [keys of this] [separator] [keys of right]
+     *
+     * The new node's children layout is the following:
+     * [children of this] [children of right]
+     *
+     * Must only be called when:
+     * 1. This node (and its right neighbour consequently) are NOT leaves.
+     * 2. This node has a right neighbour (aka, this->index_ <
+     * parent->n_children_ - 1)
+     * 3. Both this node and its right neighbour are at or below minimum degree.
+     *
+     * If this and the right neighbour's parent is the tree root, curr_bt->root_
+     * is updated to the new node.
+     *
+     * The current BTree is passed in, in the case this causes a merge happening
+     * when the root only has 1 key left, so a new root is updated.
+     *
+     * @param curr_bt
+     */
+    void nonleaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
+
+    /**
+     * @brief
+     * @return
+     */
+    auto get_left_separator_()
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+
+    /**
+     * @brief
+     * @return
+     */
+    auto get_right_separator_()
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+
+    /**
+     * @brief
+     * @return
+     */
+    auto get_right_neighbour_and_sep_()
+        -> std::pair<
+            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>,
+            std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+
+    /**
+     * @brief Removes the key at the specified index.
+     *
+     * Will trigger borrowing if removal causes the number of keys to fall below
+     * its minimum degree.
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * Must only be called when:
+     * 1. index is in bound 0 to this->n_keys_ - 1
+     * 2. This node is leaf.
+     *
+     * @param index The specified index.
+     * @return The removed key.
+     */
+    auto leaf_remove_at_(std::size_t index)
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+
+    /**
+     * @brief Removes the key with the specified value
+     *
+     * Will trigger borrowing if removal causes the number of keys to fall below
+     * its minimum degree.
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * Must only be called when:
+     * 1. This node is leaf.
+     *
+     * @param key The specified key.
+     * @return The removed key, if it exists, or nullopt otherwise.
+     */
+    auto leaf_remove_(
+        std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        -> std::optional<
+            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>>;
+
+    /**
+     * @brief Removes the key at the specified index.
+     *
+     * Will trigger borrowing if removal causes the number of keys to fall below
+     * its minimum degree.
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * Must only be called when:
+     * 1. index is in bound 0 to this->n_keys_ - 1
+     * 2. This node is NOT leaf.
+     *
+     * @param index The specified index.
+     * @return The removed key.
+     */
+    auto nonleaf_remove_at_(std::size_t index)
+        -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
+
+    /**
+     * @brief Removes the key with the specified value
+     *
+     * Will trigger borrowing if removal causes the number of keys to fall below
+     * its minimum degree.
+     *
+     * If a node cannot borrow from both its left and right neighbour, a merge
+     * is triggered.
+     *
+     * Must only be called when:
+     * 1. This node is NOT leaf.
+     *
+     * @param key The specified key.
+     * @return The removed key, if it exists, or nullopt otherwise.
+     */
+    auto nonleaf_remove_(
+        std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key)
+        -> std::optional<
+            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>>;
+
   public:
     BTreeNode() noexcept = default;
 
@@ -460,8 +640,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     auto
     insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-                    key) noexcept -> std::enable_if_t<std::copyable<K>, bool> {
-        K pass_in = std::is_copy_assignable_v<K> ? key : K{key};
+                    key) noexcept
+        -> std::enable_if_t<std::is_copy_constructible_v<K>, bool> {
+        K pass_in = key;
         return insert(std::move(pass_in));
     }
 };
@@ -574,7 +755,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_leaf_(BTree<K, MIN_DEG>* curr_bt,
     for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
          ++this_idx) {
         new_node->inner_insert_key_at_(
-            curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
+            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
         --this->n_keys_;
         ++new_node_idx;
     }
@@ -600,7 +781,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_nonleaf_(BTree<K, MIN_DEG>* curr_bt,
     for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
          ++this_idx) {
         new_node->inner_insert_key_at_(
-            curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
+            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
         new_node->inner_insert_child_at_(
             std::move(this->children_[this_idx + 1]), new_node_idx + 1);
         --this->n_keys_;
@@ -682,10 +863,10 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
             // insert into the new node instead.
             // HACK: new node is assumed to be this node's right neighbour
             this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(key));
+                curr_bt, std::forward<K>(key));
             return;
         }
-        this->inner_insert_(curr_bt, std::move(key));
+        this->inner_insert_(curr_bt, std::forward<K>(key));
         return;
     }
 
@@ -693,7 +874,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
          --idx) {
         this->keys_[idx + 1] = std::move(this->keys_[idx]);
     }
-    this->keys_[index] = std::move(key);
+    this->keys_[index] = std::forward<K>(key);
     ++this->n_keys_;
 }
 
@@ -719,7 +900,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_(
                 curr_bt, std::move(key));
             return;
         }
-        this->inner_insert_(curr_bt, std::move(key));
+        this->inner_insert_(curr_bt, std::forward<K>(key));
         return;
     }
     long long insert_idx = inner_key_find_(key).second + 1;
@@ -749,7 +930,7 @@ auto BTree<K, MIN_DEG>::insert(
         return false;
     }
     long long index = static_cast<long long>(pair_result.second) + 1;
-    curr_node->inner_insert_key_at_(this, std::move(key), index);
+    curr_node->inner_insert_key_at_(this, std::forward<K>(key), index);
     return true;
 }
 
