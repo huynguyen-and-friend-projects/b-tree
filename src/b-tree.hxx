@@ -159,7 +159,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * 1. This node has a parent (aka, is not root).
      * 2. This node has a right neighbour.
      *
-     * @return An unique pointer to this node's left neighbour 
+     * @return An unique pointer to this node's left neighbour
      */
     auto own_left_neighbour_() -> std::unique_ptr<BTreeNode>&& {
         assert(has_left_neighbour_());
@@ -171,7 +171,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * 1. This node has a parent (aka, is not root).
      * 2. This node has a right neighbour.
      *
-     * @return An unique pointer to this node's left neighbour 
+     * @return An unique pointer to this node's left neighbour
      */
     auto own_right_neighbour_() -> std::unique_ptr<BTreeNode>&& {
         assert(has_right_neighbour_());
@@ -345,7 +345,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return The old separator.
      */
-    auto borrow_left_()
+    [[nodiscard]] auto borrow_left_()
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
     /**
      * @brief Takes the separator between this node and its right neighbour, and
@@ -363,7 +363,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return The old separator.
      */
-    auto borrow_right_()
+    [[nodiscard]] auto borrow_right_()
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
 
     /**
