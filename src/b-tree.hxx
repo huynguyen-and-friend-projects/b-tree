@@ -117,6 +117,68 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     }
 
     /**
+     * @return Whether this node has a left neighbour
+     */
+    auto has_left_neighbour_() -> bool {
+        return parent_ != nullptr && index_ > 0;
+    }
+
+    /**
+     * @return Whether this node has a right neighbour
+     */
+    auto has_right_neighbour_() -> bool {
+        return parent_ != nullptr && index_ < n_keys_ - 1;
+    }
+
+    /**
+     * Must only be called when:
+     * 1. This node has a parent (aka, is not root).
+     * 2. This node has a left neighbour.
+     *
+     * @return A reference to this node's left neighbour
+     */
+    auto ref_left_neighbour_() -> BTreeNode& {
+        assert(has_left_neighbour_());
+        return *parent_->children_[index_ - 1].get();
+    }
+
+    /**
+     * Must only be called when:
+     * 1. This node has a parent (aka, is not root).
+     * 2. This node has a right neighbour.
+     *
+     * @return A reference to this node's right neighbour
+     */
+    auto ref_right_neighbour_() -> BTreeNode& {
+        assert(has_right_neighbour_());
+        return *parent_->children_[index_ + 1].get();
+    }
+
+    /**
+     * Must only be called when:
+     * 1. This node has a parent (aka, is not root).
+     * 2. This node has a right neighbour.
+     *
+     * @return An unique pointer to this node's left neighbour 
+     */
+    auto own_left_neighbour_() -> std::unique_ptr<BTreeNode>&& {
+        assert(has_left_neighbour_());
+        return std::move(parent_->children_[index_ - 1]);
+    }
+
+    /**
+     * Must only be called when:
+     * 1. This node has a parent (aka, is not root).
+     * 2. This node has a right neighbour.
+     *
+     * @return An unique pointer to this node's left neighbour 
+     */
+    auto own_right_neighbour_() -> std::unique_ptr<BTreeNode>&& {
+        assert(has_right_neighbour_());
+        return std::move(parent_->children_[index_ + 1]);
+    }
+
+    /**
      * @brief Sets parent of this node to be the specified node.
      *
      * This is the preferred (albeit a little slower) way to change parent node.
