@@ -980,6 +980,121 @@ void BTreeNode<K, MIN_DEG>::inner_insert_(
 }
 
 template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_borrow_left_()
+    -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> {
+    assert_(has_left_neighbour_() &&
+            ref_left_neighbour_().no_rebalance_removable_());
+
+    BTreeNode left_neighbour = ref_left_neighbour_();
+    K ret = std::move(parent_->keys_[index_ - 1]);
+    parent_->keys_[index_ - 1] = std::move(left_neighbour.keys_[n_keys_ - 1]);
+    --this->n_keys_;
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_borrow_right_()
+    -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> {
+    assert_(has_right_neighbour_() &&
+            ref_right_neighbour_().no_rebalance_removable_());
+
+    BTreeNode right_neighbour = ref_right_neighbour_();
+    K ret = std::move(parent_->keys_[index_]);
+    parent_->keys_[index_] = std::move(right_neighbour.keys_[0]);
+
+    // right's first key is now empty, which isn't good.
+    for (std::size_t pos = 1; pos < right_neighbour.n_keys_; ++pos) {
+        right_neighbour.keys_[pos - 1] = std::move(right_neighbour.keys_[pos]);
+    }
+    --this->n_keys_;
+    return ret;
+}
+
+// TODO: this part
+
+// template <Key K, std::size_t MIN_DEG>
+// void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) {
+//     assert(parent_ != nullptr && has_right_neighbour_());
+//
+// }
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::get_right_neighbour_and_sep_()
+    -> std::pair<std::unique_ptr<BTreeNode<K, MIN_DEG>&&>,
+                 std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>> {
+    assert(parent_ != nullptr && this->has_right_neighbour_());
+
+    K ret_key = std::move(parent_->keys_[this->index_]);
+    auto ret_uptr = std::move(parent_->children_[this->index_ + 1]);
+    for (std::size_t pos = this->index_ + 1; pos < parent_->n_keys_; ++pos) {
+        parent_->keys_[pos] = std::move(parent_->keys_[pos + 1]);
+        parent_->children_[pos + 1] = std::move(parent_->children_[pos + 2]);
+    }
+
+    // merging needed
+    // TODO: finish the case where merging is needed
+
+    --parent_->n_keys_;
+    --parent_->n_children_;
+    return std::make_pair<
+        std::unique_ptr<BTreeNode>,
+        std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>>(
+        std::move(ret_key), std::move(ret_uptr));
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_remove_at_(BTree<K, MIN_DEG>* curr_bt,
+                                            std::size_t index)
+    -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> {
+    assert(is_leaf());
+    assert(index > 0 && index < n_keys_);
+
+    K ret = std::move(keys_[index]);
+
+    // no borrowing needed
+    if (no_rebalance_removable_() || is_root()) {
+        for (std::size_t pos = index + 1; pos < n_keys_; ++pos) {
+            keys_[pos - 1] = std::move(keys_[pos]);
+        }
+        --n_keys_;
+        return ret;
+    }
+
+    // borrowing needed
+    // is_leaf && !is_root -> has parent
+    assert(parent_ != nullptr);
+
+    // if has parent -> has either left or right neighbour
+    if (has_right_neighbour_() &&
+        ref_right_neighbour_().no_rebalance_removable_()) {
+        for (std::size_t pos = index + 1; pos < n_keys_; ++pos) {
+            keys_[pos - 1] = std::move(keys_[pos]);
+        }
+        keys_[n_keys_ - 1] = leaf_borrow_right_();
+        return ret;
+    }
+    if (has_left_neighbour_() &&
+        ref_left_neighbour_().no_rebalance_removable_()) {
+        for (auto pos = static_cast<long long>(index - 1); pos > -1; --pos) {
+            keys_[pos + 1] = std::move(keys_[pos]);
+        }
+        keys_[0] = leaf_borrow_left_();
+        return ret;
+    }
+    // only leaf_merge_right_ is called because a right merge is technically
+    // cheaper for a left merge, one needs to move the current array inside this
+    // node all the way to the right end of its key array first.
+    if (has_right_neighbour_()) {
+        --n_keys_;
+        this->leaf_merge_right_(curr_bt);
+        return ret;
+    }
+    --n_keys_;
+    ref_left_neighbour_().leaf_merge_right_(curr_bt);
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
 auto BTree<K, MIN_DEG>::insert(
     std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) noexcept
     -> bool {
