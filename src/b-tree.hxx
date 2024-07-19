@@ -345,7 +345,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return The old separator.
      */
-    [[nodiscard]] auto borrow_left_()
+    [[nodiscard]] auto leaf_borrow_left_()
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
     /**
      * @brief Takes the separator between this node and its right neighbour, and
@@ -363,7 +363,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return The old separator.
      */
-    [[nodiscard]] auto borrow_right_()
+    [[nodiscard]] auto leaf_borrow_right_()
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
 
     /**
@@ -429,7 +429,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     auto get_right_neighbour_and_sep_()
         -> std::pair<
             std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>,
-            std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+            std::unique_ptr<BTreeNode<K, MIN_DEG>&&>>;
 
     /**
      * @brief Removes the key at the specified index.
@@ -447,7 +447,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index.
      * @return The removed key.
      */
-    auto leaf_remove_at_(std::size_t index)
+    auto leaf_remove_at_(BTree<K, MIN_DEG>* curr_bt, std::size_t index)
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
 
     /**
