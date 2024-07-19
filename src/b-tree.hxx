@@ -361,6 +361,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
 
     /**
+     * @brief
+     * @return
+     */
+    auto get_right_neighbour_and_sep_()
+        -> std::pair<
+            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>,
+            std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+
+    /**
      * @brief Removes the key at the specified index.
      *
      * Will trigger borrowing if removal causes the number of keys to fall below
@@ -631,8 +640,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     auto
     insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-                    key) noexcept -> std::enable_if_t<std::copyable<K>, bool> {
-        K pass_in = std::is_copy_assignable_v<K> ? key : K{key};
+                    key) noexcept
+        -> std::enable_if_t<std::is_copy_constructible_v<K>, bool> {
+        K pass_in = key;
         return insert(std::move(pass_in));
     }
 };
@@ -745,7 +755,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_leaf_(BTree<K, MIN_DEG>* curr_bt,
     for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
          ++this_idx) {
         new_node->inner_insert_key_at_(
-            curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
+            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
         --this->n_keys_;
         ++new_node_idx;
     }
@@ -771,7 +781,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_nonleaf_(BTree<K, MIN_DEG>* curr_bt,
     for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
          ++this_idx) {
         new_node->inner_insert_key_at_(
-            curr_bt, std::move(this->keys_[this_idx]), new_node_idx);
+            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
         new_node->inner_insert_child_at_(
             std::move(this->children_[this_idx + 1]), new_node_idx + 1);
         --this->n_keys_;
@@ -853,10 +863,10 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
             // insert into the new node instead.
             // HACK: new node is assumed to be this node's right neighbour
             this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(key));
+                curr_bt, std::forward<K>(key));
             return;
         }
-        this->inner_insert_(curr_bt, std::move(key));
+        this->inner_insert_(curr_bt, std::forward<K>(key));
         return;
     }
 
@@ -864,7 +874,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
          --idx) {
         this->keys_[idx + 1] = std::move(this->keys_[idx]);
     }
-    this->keys_[index] = std::move(key);
+    this->keys_[index] = std::forward<K>(key);
     ++this->n_keys_;
 }
 
@@ -890,7 +900,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_(
                 curr_bt, std::move(key));
             return;
         }
-        this->inner_insert_(curr_bt, std::move(key));
+        this->inner_insert_(curr_bt, std::forward<K>(key));
         return;
     }
     long long insert_idx = inner_key_find_(key).second + 1;
@@ -920,7 +930,7 @@ auto BTree<K, MIN_DEG>::insert(
         return false;
     }
     long long index = static_cast<long long>(pair_result.second) + 1;
-    curr_node->inner_insert_key_at_(this, std::move(key), index);
+    curr_node->inner_insert_key_at_(this, std::forward<K>(key), index);
     return true;
 }
 
