@@ -423,13 +423,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         -> std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>;
 
     /**
-     * @brief
-     * @return
+     * @return A pair whose:
+     * - First value is the right neighbour
+     * - Second value is the separator between this node and the right separator's
      */
     auto get_right_neighbour_and_sep_()
-        -> std::pair<
-            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>,
-            std::unique_ptr<BTreeNode<K, MIN_DEG>&&>>;
+        -> std::pair<std::unique_ptr<BTreeNode<K, MIN_DEG>&&>,
+            std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>>;
 
     /**
      * @brief Removes the key at the specified index.
