@@ -459,8 +459,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
-                                               K, const K&> key) const noexcept
+    [[nodiscard]] auto
+    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -514,6 +515,17 @@ template <Key K, std::size_t MIN_DEG> class BTree {
         K pass_in = key;
         return insert(std::move(pass_in));
     }
+
+    /**
+     * @brief Removes the specified key into the BTree.
+     *
+     * @param key The specified key
+     * @return true if key exists and is successfully removed, false if key
+     * doesn't exist.
+     */
+    auto
+    remove(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        -> bool;
 };
 
 template <Key K, std::size_t MIN_DEG>
@@ -773,6 +785,134 @@ void BTreeNode<K, MIN_DEG>::inner_insert_(
 }
 
 template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_remove_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
+    assert(is_leaf());
+
+    if (!leaf_inner_remove_(key)) {
+        return false;
+    }
+
+    if (n_keys_ >= minimum_deg_()) {
+        return true;
+    }
+
+    assert(!is_root());
+    if (has_left_() && get_left_()->n_keys_ > MIN_DEG) {
+        // make room for borrowed key
+        for (std::size_t pos = n_keys_; pos > 0; --pos) {
+            keys_[pos] = std::move(keys_[pos - 1]);
+        }
+        keys_[0] = leaf_borrow_left_();
+        ++n_keys_;
+        return true;
+    }
+    if (has_right_() && get_right_()->n_keys_ > minimum_deg_()) {
+        keys_[n_keys_] = leaf_borrow_right_();
+        ++n_keys_;
+        return true;
+    }
+    if (has_left_()) {
+        get_left_()->leaf_merge_right_();
+        return true;
+    }
+    this->leaf_merge_right_();
+    return true;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_(
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
+    assert(is_leaf());
+
+    std::pair<bool, std::size_t> pair_result = inner_key_find_(key);
+    if (!pair_result.first) {
+        return false;
+    }
+
+    assert(pair_result.second >= 0);
+    // overwrite the to-be-removed key
+    for (auto pos = static_cast<std::size_t>(pair_result.second);
+         pos < n_keys_ - 1; ++pos) {
+        keys_[pos] = std::move(keys_[pos + 1]);
+    }
+    --n_keys_;
+    return true;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index)
+    -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
+    assert(index < n_keys_);
+
+    K ret = std::move(keys_[index]);
+
+    // fill in the gap left by moving keys_[index] away
+    for (std::size_t pos = index; pos < n_keys_ - 1; ++pos) {
+        keys_[pos] = std::move(keys_[pos + 1]);
+    }
+
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_left_()
+    -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
+    assert(has_left_());
+
+    BTreeNode* left = get_left_();
+    K ret = std::move(parent_->keys_[index_]);
+    parent_->keys_[index_] = std::move(left->keys_[left->n_keys_ - 1]);
+    --left->n_keys_;
+
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_right_()
+    -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
+    assert(has_right_());
+
+    BTreeNode* right = get_right_();
+    K ret = std::move(parent_->keys_[index_ + 1]);
+    parent_->keys_[index_ + 1] = std::move(right->keys_[0]);
+
+    // since right->keys_[0] just got moved out.
+    for (std::size_t pos = 0; pos < right->n_keys_ - 1; ++pos) {
+        right->keys_[pos] = std::move(right->keys_[pos + 1]);
+    }
+    --right->n_keys_;
+
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::leaf_merge_right_() {
+    assert(has_right_() && get_right_()->n_keys_ <= MIN_DEG);
+
+    keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
+    ++n_keys_;
+    std::unique_ptr<BTreeNode> right =
+        std::move(parent_->children_[index_ + 1]);
+    // rearrange parent's keys (and children)
+    for (std::size_t pos = this->index_; pos < parent_->n_keys_ - 1; ++pos) {
+        parent_->keys_[pos] = std::move(parent_->keys_[pos + 1]);
+        parent_->children_[pos + 1] = std::move(parent_->children_[pos + 2]);
+        parent_->children_[pos + 1]->index_ = pos + 1;
+    }
+    --parent_->n_keys_;
+    --parent_->n_children_;
+
+    std::size_t max_pos = right->n_keys_ - 1;
+    std::size_t curr_pos = this->n_keys_;
+    for (std::size_t pos = 0; pos <= max_pos; ++pos) {
+        this->keys_[curr_pos] = std::move(right->keys_[pos]);
+        ++this->n_keys_;
+        ++curr_pos;
+    }
+}
+
+template <Key K, std::size_t MIN_DEG>
 auto BTree<K, MIN_DEG>::insert(
     std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) noexcept
     -> bool {
@@ -789,8 +929,32 @@ auto BTree<K, MIN_DEG>::insert(
     if (pair_result.first) {
         return false;
     }
-    long long index = static_cast<long long>(pair_result.second) + 1;
+    auto index = static_cast<std::size_t>(
+        static_cast<long long>(pair_result.second) + 1);
     curr_node->inner_insert_key_at_(this, std::forward<K>(key), index);
+    return true;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTree<K, MIN_DEG>::remove(
+    std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+    -> bool {
+    BTreeNode<K, MIN_DEG>* curr_node = root_.get();
+
+    std::pair<bool, std::size_t> pair_result = curr_node->inner_key_find_(key);
+    while (!curr_node->is_leaf()) {
+        if (pair_result.first) {
+            // TODO: change this after a non-leaf remove method has been
+            // implemented
+            return false;
+        }
+        curr_node = curr_node->children_[pair_result.second + 1].get();
+        pair_result = curr_node->inner_key_find_(key);
+    }
+    if (!pair_result.first) {
+        return false;
+    }
+    curr_node->leaf_remove_(key);
     return true;
 }
 } // namespace my_b_tree
