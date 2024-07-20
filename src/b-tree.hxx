@@ -545,10 +545,15 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt,
         // each of those key to the new node.
         for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
              ++this_idx) {
-            new_node->inner_insert_key_at_(
-                curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
-            new_node->inner_insert_child_at_(
-                std::move(this->children_[this_idx + 1]), new_node_idx + 1);
+            new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
+            ++new_node->n_keys_;
+
+            new_node->children_[new_node_idx + 1] =
+                std::move(this->children_[this_idx + 1]);
+            new_node->children_[new_node_idx + 1]->index_ = new_node_idx + 1;
+            new_node->children_[new_node_idx + 1]->parent_ = new_node.get();
+            ++new_node->n_children_;
+
             --this->n_keys_;
             --this->n_children_;
             ++new_node_idx;
