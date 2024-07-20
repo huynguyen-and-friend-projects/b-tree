@@ -289,7 +289,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @brief Take the left neighbour's largest key as the new separator between
      * this and the left neighbour, and return the old separator.
      *
-     * Must only be called when this is leaf and has left neighbout
+     * Must only be called when this is leaf and has left neighbour
      *
      * @return the old separator
      */
@@ -300,7 +300,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @brief Take the right neighbour's smallest key as the new separator
      * between this and the right neighbour, and return the old separator.
      *
-     * Must only be called when this is leaf and has right neighbout
+     * Must only be called when this is leaf and has right neighbour
      *
      * @return the old separator
      */
@@ -308,7 +308,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     leaf_borrow_right_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
-     * @brief Merge this node with its right neighbout
+     * @brief Merge this node with its right neighbour
      *
      * Must only be called when this is leaf and both this and
      * its right neighbour cannot remove any more keys without going below the
