@@ -154,38 +154,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         -> std::optional<std::pair<const BTreeNode*, std::size_t>>;
 
     /**
-     * @brief Splits the current node into 2, and insert the current median into
-     * the parent. inner_split_ calls this function when the current node is
-     * leaf.
-     *
-     * Only used inside inner_split_. DO NOT USE ELSEWHERE.
-     *
-     * In case a new root node is made, curr_bt->root_ is updated.
-     *
-     * @param curr_bt
-     * @param new_node The new node created inside the function inner_split_
-     */
-    void inner_split_leaf_(
-        BTree<K, MIN_DEG>* curr_bt, BTreeNode* new_node,
-        std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-            new_key) noexcept;
-
-    /**
-     * @brief Splits the current node into 2, and insert the current median into
-     * the parent. inner_split_ calls this function when the current node is NOT
-     * leaf.
-     *
-     * Only used inside inner_split_. DO NOT USE ELSEWHERE.
-     *
-     * In case a new root node is made, curr_bt->root_ is updated.
-     *
-     * @param curr_bt
-     * @param new_node The new node created inside the function inner_split_
-     */
-    void inner_split_nonleaf_(BTree<K, MIN_DEG>* curr_bt,
-                              BTreeNode* new_node) noexcept;
-
-    /**
      * @brief (Simply) split the current node into 2, and insert the current
      * median into the parent.
      *
@@ -539,59 +507,6 @@ auto BTreeNode<K, MIN_DEG>::find_(
         return std::nullopt;
     }
     return children_[pair_result.second + 1]->find_(key);
-}
-
-template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::inner_split_leaf_(
-    BTree<K, MIN_DEG>* curr_bt, BTreeNode* new_node,
-    std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
-        new_key) noexcept {
-    assert(is_leaf());
-
-    std::size_t median_idx = (n_keys_ - 1) / 2;
-    if (this->keys_[median_idx] < new_key) {
-        ++median_idx;
-    }
-    std::size_t max_idx = n_keys_ - 1;
-    std::size_t new_node_idx = 0;
-
-    // move keys larger than the median to the new node.
-    for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
-         ++this_idx) {
-        new_node->inner_insert_key_at_(
-            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
-        --this->n_keys_;
-        ++new_node_idx;
-    }
-}
-
-template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::inner_split_nonleaf_(BTree<K, MIN_DEG>* curr_bt,
-                                                 BTreeNode* new_node) noexcept {
-    assert(!is_leaf());
-
-    std::size_t median_idx = (n_keys_ - 1) / 2;
-    std::size_t max_idx = n_keys_ - 1;
-    std::size_t new_node_idx = 0;
-
-    // move the child just larger than the median (if any) to the first
-    // child pointer of the new node
-    new_node->inner_insert_child_at_(std::move(this->children_[median_idx + 1]),
-                                     0);
-    --this->n_children_;
-
-    // move keys larger than the median and the children just larger than each
-    // of those key to the new node.
-    for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
-         ++this_idx) {
-        new_node->inner_insert_key_at_(
-            curr_bt, std::forward<K>(this->keys_[this_idx]), new_node_idx);
-        new_node->inner_insert_child_at_(
-            std::move(this->children_[this_idx + 1]), new_node_idx + 1);
-        --this->n_keys_;
-        --this->n_children_;
-        ++new_node_idx;
-    }
 }
 
 template <Key K, std::size_t MIN_DEG>
