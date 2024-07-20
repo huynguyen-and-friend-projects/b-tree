@@ -256,6 +256,57 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     inner_insert_(BTree<K, MIN_DEG>* curr_bt,
                   std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept;
 
+    auto leaf_remove_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
+                          key) noexcept -> bool;
+
+    /**
+     * @brief Remove the specified key out of the inner array.
+     *
+     * @param key The specified key
+     * @return true if the key exists (and is removed), false if the key doesn't
+     */
+    auto leaf_inner_remove_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
+                                key) noexcept -> bool;
+
+    /**
+     * @brief Remove the key at the specified index out of the inner array.
+     *
+     * index must be between 0 and n_keys_
+     *
+     * @param index The specified index
+     * @return the removed key
+     */
+    auto leaf_inner_remove_at_(std::size_t index) -> K;
+
+    /**
+     * @brief Take the left neighbour's largest key as the new separator between
+     * this and the left neighbour, and return the old separator.
+     *
+     * Must only be called when this is leaf and has left neighbout
+     *
+     * @return the old separator
+     */
+    auto leaf_borrow_left_() -> K;
+
+    /**
+     * @brief Take the right neighbour's smallest key as the new separator
+     * between this and the right neighbour, and return the old separator.
+     *
+     * Must only be called when this is leaf and has right neighbout
+     *
+     * @return the old separator
+     */
+    auto leaf_borrow_right_() -> K;
+
+    /**
+     * @brief Merge this node with its right neighbout
+     *
+     * Must only be called when this is leaf and both this and
+     * its right neighbour cannot remove any more keys without going below the
+     * minimum degree.
+     */
+    void leaf_merge_right_();
+
   public:
     BTreeNode() noexcept = default;
 
