@@ -94,6 +94,48 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     friend class BTree<K, MIN_DEG>;
 
     /**
+     * Return the technical minimum degree of the current node.
+     *
+     * This should only be used when the difference between root's
+     * minimum degree and others' is important.
+     *
+     * @return 0 if root, MIN_DEG otherwise
+     */
+    auto minimum_deg_() -> std::size_t { return (is_root()) ? 0 : MIN_DEG; }
+
+    /**
+     * @return Whether this node has a left neighbour
+     */
+    auto has_left_() -> bool { return (!is_root() && index_ > 0); }
+
+    /**
+     * @return Whether this node has a right neighbour
+     */
+    auto has_right_() -> bool {
+        return (!is_root() && index_ < parent_->n_children_ - 1);
+    }
+
+    /**
+     * Only call when this node has left neighbour
+     *
+     * @return Non-owning pointer to left neighbour
+     */
+    auto get_left_() -> BTreeNode* {
+        assert(has_left_());
+        return parent_->children_[index_ - 1].get();
+    }
+
+    /**
+     * Only call when this node has right neighbour
+     *
+     * @return Non-owning pointer to right neighbour
+     */
+    auto get_right_() -> BTreeNode* {
+        assert(has_right_());
+        return parent_->children_[index_ + 1].get();
+    }
+
+    /**
      * @brief Sets parent of this node to be the specified node.
      *
      * This is the preferred (albeit a little slower) way to change parent node.
