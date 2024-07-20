@@ -256,6 +256,12 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     inner_insert_(BTree<K, MIN_DEG>* curr_bt,
                   std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept;
 
+    /**
+     * @brief Remove the specified key out of this leaf's key array
+     *
+     * @param key The specified key
+     * @return true if key exists (and is removed), false if key doesn't exist.
+     */
     auto leaf_remove_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
                           key) noexcept -> bool;
 
@@ -276,7 +282,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index
      * @return the removed key
      */
-    auto leaf_inner_remove_at_(std::size_t index) -> K;
+    auto leaf_inner_remove_at_(std::size_t index)
+        -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the left neighbour's largest key as the new separator between
@@ -286,7 +293,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return the old separator
      */
-    auto leaf_borrow_left_() -> K;
+    [[nodiscard]] auto
+    leaf_borrow_left_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the right neighbour's smallest key as the new separator
@@ -296,7 +304,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return the old separator
      */
-    auto leaf_borrow_right_() -> K;
+    [[nodiscard]] auto
+    leaf_borrow_right_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Merge this node with its right neighbout
