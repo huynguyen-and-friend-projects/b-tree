@@ -266,6 +266,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
                           key) noexcept -> bool;
 
     /**
+     * @brief Either borrow from left or right, or merge.
+     *
+     * Must only be called when n_keys_ <= minimum_deg_()
+     */
+    void leaf_rebalance_();
+
+    /**
      * @brief Remove the specified key out of the inner array.
      *
      * @param key The specified key
@@ -459,9 +466,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto
-    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
-        const noexcept
+    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
+                                               K, const K&> key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -798,6 +804,13 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
     }
 
     assert(!is_root());
+    leaf_rebalance_();
+    return true;
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::leaf_rebalance_() {
+    assert(n_keys_ < MIN_DEG);
     if (has_left_() && get_left_()->n_keys_ > MIN_DEG) {
         // make room for borrowed key
         for (std::size_t pos = n_keys_; pos > 0; --pos) {
@@ -805,19 +818,18 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
         }
         keys_[0] = leaf_borrow_left_();
         ++n_keys_;
-        return true;
+        return;
     }
     if (has_right_() && get_right_()->n_keys_ > minimum_deg_()) {
         keys_[n_keys_] = leaf_borrow_right_();
         ++n_keys_;
-        return true;
+        return;
     }
     if (has_left_()) {
         get_left_()->leaf_merge_right_();
-        return true;
+        return;
     }
     this->leaf_merge_right_();
-    return true;
 }
 
 template <Key K, std::size_t MIN_DEG>
