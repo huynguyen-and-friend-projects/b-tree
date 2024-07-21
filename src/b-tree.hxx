@@ -653,8 +653,7 @@ BTreeNode<K, MIN_DEG>::BTreeNode(const BTreeNode& cpy)
 }
 
 template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy)
-    -> BTreeNode& {
+auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy) -> BTreeNode& {
     if (&cpy == this) {
         std::swap(this->n_keys_, this->n_keys_);
         return *this;
@@ -766,11 +765,8 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt,
             new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
             ++new_node->n_keys_;
 
-            new_node->children_[new_node_idx + 1] =
-                std::move(this->children_[this_idx + 1]);
-            new_node->children_[new_node_idx + 1]->index_ = new_node_idx + 1;
-            new_node->children_[new_node_idx + 1]->parent_ = new_node.get();
-            ++new_node->n_children_;
+            new_node->inner_insert_child_at_(
+                std::move(this->children_[this_idx + 1]), new_node_idx + 1);
 
             --this->n_keys_;
             --this->n_children_;
