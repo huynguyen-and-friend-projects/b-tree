@@ -440,7 +440,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
-    auto operator=(const BTreeNode& cpy) noexcept -> BTreeNode&;
+    auto operator=(const BTreeNode& cpy) -> BTreeNode&;
 
     ~BTreeNode() noexcept = default;
 
@@ -532,7 +532,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
     /**
      * WARNING: VERY EXPENSIVE OPERATION.
      */
-    auto operator=(const BTree& cpy) noexcept -> BTree& {
+    auto operator=(const BTree& cpy) -> BTree& {
         if (&cpy == this) {
             return *this;
         }
@@ -653,7 +653,7 @@ BTreeNode<K, MIN_DEG>::BTreeNode(const BTreeNode& cpy)
 }
 
 template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy) noexcept
+auto BTreeNode<K, MIN_DEG>::operator=(const BTreeNode& cpy)
     -> BTreeNode& {
     if (&cpy == this) {
         std::swap(this->n_keys_, this->n_keys_);
