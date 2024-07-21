@@ -256,9 +256,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @param key The specified key.
      */
-    void
-    inner_insert_(BTree<K, MIN_DEG>* curr_bt,
-                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key);
+    void inner_insert_(BTree<K, MIN_DEG>* curr_bt,
+                       std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key);
 
     /**
      * @brief Remove the specified key out of this leaf's key array
@@ -359,8 +358,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return the old separator
      */
-    [[nodiscard]] auto
-    leaf_borrow_left_() noexcept -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
+    [[nodiscard]] auto leaf_borrow_left_() noexcept
+        -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the right neighbour's smallest key as the new separator
@@ -370,8 +369,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return the old separator
      */
-    [[nodiscard]] auto
-    leaf_borrow_right_() noexcept -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
+    [[nodiscard]] auto leaf_borrow_right_() noexcept
+        -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the left neighbour's largest key and the child larger than
@@ -594,8 +593,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * original variable K passed in would still be intact (aka, not actually
      * moved).
      */
-    auto insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
-                    key) -> bool;
+    auto insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key)
+        -> bool;
     /**
      * @brief Inserts the specified key into the BTree.
      *
@@ -815,8 +814,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
     BTree<K, MIN_DEG>* curr_bt,
-    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
-    std::size_t index) {
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key, std::size_t index) {
     assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
 
     bool is_split = false;
@@ -904,7 +902,8 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) noexcept {
+void BTreeNode<K, MIN_DEG>::leaf_rebalance_(
+    BTree<K, MIN_DEG>* curr_bt) noexcept {
     assert(!is_root());
     assert(is_leaf());
     assert(n_keys_ < MIN_DEG);
@@ -990,7 +989,8 @@ template <Key K, std::size_t MIN_DEG>
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexcept {
+void BTreeNode<K, MIN_DEG>::leaf_merge_right_(
+    BTree<K, MIN_DEG>* curr_bt) noexcept {
     assert(has_right_() && get_right_()->n_keys_ <= MIN_DEG);
 
     keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
@@ -1023,8 +1023,7 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexce
 
 template <Key K, std::size_t MIN_DEG>
 auto BTree<K, MIN_DEG>::insert(
-    std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) 
-    -> bool {
+    std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) -> bool {
     BTreeNode<K, MIN_DEG>* curr_node = root_.get();
 
     std::pair<bool, std::size_t> pair_result = curr_node->inner_key_find_(key);
