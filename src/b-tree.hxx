@@ -101,7 +101,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return 0 if root, MIN_DEG otherwise
      */
-    auto minimum_deg_() -> std::size_t { return (is_root()) ? 0 : MIN_DEG; }
+    auto minimum_deg_() -> std::size_t { return (is_root()) ? 1 : MIN_DEG; }
 
     /**
      * @return Whether this node has a left neighbour
@@ -262,15 +262,19 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param key The specified key
      * @return true if key exists (and is removed), false if key doesn't exist.
      */
-    auto leaf_remove_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
+    auto leaf_remove_(BTree<K, MIN_DEG>* curr_bt,
+                      std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
                           key) noexcept -> bool;
 
     /**
      * @brief Either borrow from left or right, or merge.
      *
-     * Must only be called when n_keys_ <= minimum_deg_()
+     * Must only be called when n_keys_ <= minimum_deg_(),
+     * which also means this node should not be root.
      */
-    void leaf_rebalance_();
+    void leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt);
+
+    void nonleaf_rebalance_();
 
     /**
      * @brief Remove the specified key out of the inner array.
@@ -321,7 +325,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * its right neighbour cannot remove any more keys without going below the
      * minimum degree.
      */
-    void leaf_merge_right_();
+    void leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
 
   public:
     BTreeNode() noexcept = default;
@@ -466,8 +470,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
-                                               K, const K&> key) const noexcept
+    [[nodiscard]] auto
+    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -792,6 +797,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_(
 
 template <Key K, std::size_t MIN_DEG>
 auto BTreeNode<K, MIN_DEG>::leaf_remove_(
+    BTree<K, MIN_DEG>* curr_bt,
     std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
     assert(is_leaf());
 
@@ -799,17 +805,18 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
         return false;
     }
 
-    if (n_keys_ >= minimum_deg_()) {
+    if (n_keys_ >= minimum_deg_() || is_root()) {
         return true;
     }
 
-    assert(!is_root());
-    leaf_rebalance_();
+    leaf_rebalance_(curr_bt);
     return true;
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_rebalance_() {
+void BTreeNode<K, MIN_DEG>::leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) {
+    assert(!is_root());
+    assert(is_leaf());
     assert(n_keys_ < MIN_DEG);
     if (has_left_() && get_left_()->n_keys_ > MIN_DEG) {
         // make room for borrowed key
@@ -826,10 +833,10 @@ void BTreeNode<K, MIN_DEG>::leaf_rebalance_() {
         return;
     }
     if (has_left_()) {
-        get_left_()->leaf_merge_right_();
+        get_left_()->leaf_merge_right_(curr_bt);
         return;
     }
-    this->leaf_merge_right_();
+    this->leaf_merge_right_(curr_bt);
 }
 
 template <Key K, std::size_t MIN_DEG>
@@ -864,6 +871,7 @@ auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index)
         keys_[pos] = std::move(keys_[pos + 1]);
     }
 
+    --n_keys_;
     return ret;
 }
 
@@ -873,9 +881,8 @@ template <Key K, std::size_t MIN_DEG>
     assert(has_left_());
 
     BTreeNode* left = get_left_();
-    K ret = std::move(parent_->keys_[index_]);
-    parent_->keys_[index_] = std::move(left->keys_[left->n_keys_ - 1]);
-    --left->n_keys_;
+    K ret = std::move(parent_->keys_[index_ - 1]);
+    parent_->keys_[index_ - 1] = left->leaf_inner_remove_at_(left->n_keys_ - 1);
 
     return ret;
 }
@@ -886,20 +893,14 @@ template <Key K, std::size_t MIN_DEG>
     assert(has_right_());
 
     BTreeNode* right = get_right_();
-    K ret = std::move(parent_->keys_[index_ + 1]);
-    parent_->keys_[index_ + 1] = std::move(right->keys_[0]);
-
-    // since right->keys_[0] just got moved out.
-    for (std::size_t pos = 0; pos < right->n_keys_ - 1; ++pos) {
-        right->keys_[pos] = std::move(right->keys_[pos + 1]);
-    }
-    --right->n_keys_;
+    K ret = std::move(parent_->keys_[index_]);
+    parent_->keys_[index_] = right->leaf_inner_remove_at_(0);
 
     return ret;
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_merge_right_() {
+void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) {
     assert(has_right_() && get_right_()->n_keys_ <= MIN_DEG);
 
     keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
@@ -921,6 +922,12 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_() {
         this->keys_[curr_pos] = std::move(right->keys_[pos]);
         ++this->n_keys_;
         ++curr_pos;
+    }
+
+    if (parent_->is_root() && parent_->n_keys_ == 0) {
+        curr_bt->root_ = std::move(curr_bt->root_->children_[index_]);
+        curr_bt->root_->parent_ = nullptr;
+        curr_bt->root_->index_ = 0;
     }
 }
 
@@ -966,7 +973,7 @@ auto BTree<K, MIN_DEG>::remove(
     if (!pair_result.first) {
         return false;
     }
-    curr_node->leaf_remove_(key);
+    curr_node->leaf_remove_(this, key);
     return true;
 }
 } // namespace my_b_tree
