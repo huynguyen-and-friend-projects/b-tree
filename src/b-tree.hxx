@@ -612,7 +612,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
     auto
     insert_copy(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&>
                     key) noexcept
-        -> std::enable_if_t<std::is_copy_constructible_v<K>, bool> {
+        -> std::enable_if_t<std::is_copy_assignable_v<K>, bool> {
         K pass_in = key;
         return insert(std::move(pass_in));
     }
