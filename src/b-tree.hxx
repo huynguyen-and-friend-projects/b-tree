@@ -595,7 +595,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * moved).
      */
     auto insert(std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&>
-                    key) noexcept -> bool;
+                    key) -> bool;
     /**
      * @brief Inserts the specified key into the BTree.
      *
@@ -1023,7 +1023,7 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexce
 
 template <Key K, std::size_t MIN_DEG>
 auto BTree<K, MIN_DEG>::insert(
-    std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) noexcept
+    std::conditional_t<std::is_trivially_copyable_v<K>, K, K&&> key) 
     -> bool {
     BTreeNode<K, MIN_DEG>* curr_node = root_.get();
 
