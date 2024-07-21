@@ -88,6 +88,8 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     /**
      * @brief This node's position inside parent's children pointer array
+     *
+     * When this node is root (parent_ == nullptr), index_ = 0;
      */
     std::size_t index_{0};
 
@@ -99,7 +101,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * This should only be used when the difference between root's
      * minimum degree and others' is important.
      *
-     * @return 0 if root, MIN_DEG otherwise
+     * @return 1 if root, MIN_DEG otherwise
      */
     [[nodiscard]] auto minimum_deg_() const noexcept -> std::size_t {
         return (is_root()) ? 1 : MIN_DEG;
@@ -286,10 +288,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     /**
      * @brief Either borrow from left or right, or merge.
-     *
-     * The difference to leaf_rebalance is this method also
-     * borrows (more like, own) the corresponding child from
-     * the borrowed node.
      *
      * Must only be called when n_keys_ <= minimum_deg_(),
      * which also means this node should not be root.
