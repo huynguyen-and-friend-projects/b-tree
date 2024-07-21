@@ -101,17 +101,21 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return 0 if root, MIN_DEG otherwise
      */
-    auto minimum_deg_() -> std::size_t { return (is_root()) ? 1 : MIN_DEG; }
+    [[nodiscard]] auto minimum_deg_() const noexcept -> std::size_t {
+        return (is_root()) ? 1 : MIN_DEG;
+    }
 
     /**
      * @return Whether this node has a left neighbour
      */
-    auto has_left_() -> bool { return (!is_root() && index_ > 0); }
+    [[nodiscard]] auto has_left_() const noexcept -> bool {
+        return (!is_root() && index_ > 0);
+    }
 
     /**
      * @return Whether this node has a right neighbour
      */
-    auto has_right_() -> bool {
+    [[nodiscard]] auto has_right_() const noexcept -> bool {
         return (!is_root() && index_ < parent_->n_children_ - 1);
     }
 
@@ -120,7 +124,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return Non-owning pointer to left neighbour
      */
-    auto get_left_() -> BTreeNode* {
+    [[nodiscard]] auto get_left_() noexcept -> BTreeNode* {
         assert(has_left_());
         return parent_->children_[index_ - 1].get();
     }
@@ -130,7 +134,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @return Non-owning pointer to right neighbour
      */
-    auto get_right_() -> BTreeNode* {
+    [[nodiscard]] auto get_right_() noexcept -> BTreeNode* {
         assert(has_right_());
         return parent_->children_[index_ + 1].get();
     }
@@ -145,7 +149,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param parent The specified parent node.
      * @param index The specified index.
      */
-    void set_parent_(BTreeNode* parent, std::size_t index) {
+    void set_parent_(BTreeNode* parent, std::size_t index) noexcept {
         // in case you don't listen
         assert(parent != this);
         assert(index < MAX_CHILDREN_);
@@ -159,7 +163,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * index must be between 0 and MAX_CHILDREN_
      */
-    void set_index_(std::size_t index) {
+    void set_index_(std::size_t index) noexcept {
         // in case you don't listen
         assert(index > 0 && index < MAX_CHILDREN_);
         index_ = index;
@@ -205,7 +209,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @param curr_bt
      */
-    void inner_split_(BTree<K, MIN_DEG>* curr_bt, K& new_key) noexcept;
+    void inner_split_(BTree<K, MIN_DEG>* curr_bt, K& new_key);
     /**
      * @brief Inserts the specified child at the specified index.
      *
@@ -218,7 +222,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index
      */
     void inner_insert_child_at_(std::unique_ptr<BTreeNode>&& child,
-                                std::size_t index) noexcept;
+                                std::size_t index);
     /**
      * @brief Inserts the specified key to the specified position in this node's
      * inner array if this node's inner array is not yet full.
@@ -240,7 +244,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     void inner_insert_key_at_(BTree<K, MIN_DEG>* curr_bt,
                               std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
-                              std::size_t index) noexcept;
+                              std::size_t index);
     /**
      * @brief Search for the position inside this node's inner array to insert
      * the specified key, then insert it if this node is not yet full.
@@ -254,7 +258,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     void
     inner_insert_(BTree<K, MIN_DEG>* curr_bt,
-                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept;
+                  std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key);
 
     /**
      * @brief Remove the specified key out of this leaf's key array
@@ -279,7 +283,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * rebalancing (specifically, merging), the newly merged node is the new
      * root.
      */
-    void leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt);
+    void leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) noexcept;
 
     /**
      * @brief Either borrow from left or right, or merge.
@@ -295,7 +299,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * rebalancing (specifically, merging), the newly merged node is the new
      * root.
      */
-    void nonleaf_rebalance_(BTree<K, MIN_DEG>* curr_bt);
+    void nonleaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) noexcept;
 
     /**
      * @brief Remove the specified key out of the inner array.
@@ -314,7 +318,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index
      * @return the removed key
      */
-    auto leaf_inner_remove_at_(std::size_t index)
+    auto leaf_inner_remove_at_(std::size_t index) noexcept
         -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
@@ -344,7 +348,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param index The specified index
      * @return the removed key
      */
-    auto nonleaf_inner_remove_at_(std::size_t index)
+    auto nonleaf_inner_remove_at_(std::size_t index) noexcept
         -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
@@ -356,7 +360,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return the old separator
      */
     [[nodiscard]] auto
-    leaf_borrow_left_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
+    leaf_borrow_left_() noexcept -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the right neighbour's smallest key as the new separator
@@ -367,7 +371,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return the old separator
      */
     [[nodiscard]] auto
-    leaf_borrow_right_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
+    leaf_borrow_right_() noexcept -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
      * @brief Take the left neighbour's largest key and the child larger than
@@ -379,7 +383,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - Second value is the owning pointer to the largest child of the left
      * node.
      */
-    [[nodiscard]] auto nonleaf_borrow_left_()
+    [[nodiscard]] auto nonleaf_borrow_left_() noexcept
         -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
                      std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
 
@@ -393,7 +397,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - Second value is the owning pointer to the smallest child of the right
      * node.
      */
-    [[nodiscard]] auto nonleaf_borrow_right_()
+    [[nodiscard]] auto nonleaf_borrow_right_() noexcept
         -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
                      std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
     /**
@@ -403,7 +407,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * its right neighbour cannot remove any more keys without going below the
      * minimum degree.
      */
-    void leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
+    void leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexcept;
 
     /**
      * @brief Merge this node with its right neighbour
@@ -412,7 +416,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * its right neighbour cannot remove any more keys without going below the
      * minimum degree.
      */
-    void nonleaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
+    void nonleaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexcept;
 
   public:
     BTreeNode() noexcept = default;
@@ -722,7 +726,7 @@ auto BTreeNode<K, MIN_DEG>::find_(
 
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt,
-                                         K& new_key) noexcept {
+                                         K& new_key) {
     // in case you don't listen.
     assert(is_full());
 
@@ -793,7 +797,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt,
 
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
-    std::unique_ptr<BTreeNode>&& child, std::size_t index) noexcept {
+    std::unique_ptr<BTreeNode>&& child, std::size_t index) {
     assert(n_children_ < MAX_CHILDREN_);
     assert(child.get() != nullptr);
     assert(index < MAX_CHILDREN_);
@@ -812,7 +816,7 @@ template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
     BTree<K, MIN_DEG>* curr_bt,
     std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key,
-    std::size_t index) noexcept {
+    std::size_t index) {
     assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
 
     bool is_split = false;
@@ -849,7 +853,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_(
     BTree<K, MIN_DEG>* curr_bt,
-    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) noexcept {
+    std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) {
     bool is_split = false;
     K insert_key = std::move(key);
     if (is_full()) {
@@ -900,7 +904,7 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) {
+void BTreeNode<K, MIN_DEG>::leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) noexcept {
     assert(!is_root());
     assert(is_leaf());
     assert(n_keys_ < MIN_DEG);
@@ -946,7 +950,7 @@ auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_(
 }
 
 template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index)
+auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index) noexcept
     -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
     assert(index < n_keys_);
 
@@ -962,7 +966,7 @@ auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index)
 }
 
 template <Key K, std::size_t MIN_DEG>
-[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_left_()
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_left_() noexcept
     -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
     assert(has_left_());
 
@@ -974,7 +978,7 @@ template <Key K, std::size_t MIN_DEG>
 }
 
 template <Key K, std::size_t MIN_DEG>
-[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_right_()
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::leaf_borrow_right_() noexcept
     -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
     assert(has_right_());
 
@@ -986,7 +990,7 @@ template <Key K, std::size_t MIN_DEG>
 }
 
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) {
+void BTreeNode<K, MIN_DEG>::leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt) noexcept {
     assert(has_right_() && get_right_()->n_keys_ <= MIN_DEG);
 
     keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
