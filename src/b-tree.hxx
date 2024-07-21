@@ -259,6 +259,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Remove the specified key out of this leaf's key array
      *
+     * In case the remove causes rebalancing after which the root node has 0
+     * key, curr_bt's root node is changed.
+     *
      * @param key The specified key
      * @return true if key exists (and is removed), false if key doesn't exist.
      */
@@ -271,10 +274,28 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * Must only be called when n_keys_ <= minimum_deg_(),
      * which also means this node should not be root.
+     *
+     * In case this node's parent is root and the root just reaches 0 key after
+     * rebalancing (specifically, merging), the newly merged node is the new
+     * root.
      */
     void leaf_rebalance_(BTree<K, MIN_DEG>* curr_bt);
 
-    void nonleaf_rebalance_();
+    /**
+     * @brief Either borrow from left or right, or merge.
+     *
+     * The difference to leaf_rebalance is this method also
+     * borrows (more like, own) the corresponding child from
+     * the borrowed node.
+     *
+     * Must only be called when n_keys_ <= minimum_deg_(),
+     * which also means this node should not be root.
+     *
+     * In case this node's parent is root and the root just reaches 0 key after
+     * rebalancing (specifically, merging), the newly merged node is the new
+     * root.
+     */
+    void nonleaf_rebalance_(BTree<K, MIN_DEG>* curr_bt);
 
     /**
      * @brief Remove the specified key out of the inner array.
@@ -294,6 +315,36 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return the removed key
      */
     auto leaf_inner_remove_at_(std::size_t index)
+        -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
+
+    /**
+     * @brief Remove the specified key out of the inner array.
+     *
+     * The process is different than that of a leaf_inner_remove_.
+     * This method finds the largest element down the left subtree of the
+     * to-be-removed key, then overwrite the removed key with that element.
+     *
+     * @param key The specified key
+     * @return true if the key exists (and is removed), false if the key doesn't
+     */
+    auto nonleaf_inner_remove_(
+        std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept
+        -> bool;
+
+    /**
+     * @brief Remove the key at the specified index out of the inner array.
+     *
+     * index must be between 0 and n_keys_
+     *
+     * The process is different than that of a leaf_inner_remove_at_.
+     * This method finds the largest element down the left subtree of the
+     * to-be-removed key, then replace the removed key with that element, and
+     * lastly return the removed key.
+     *
+     * @param index The specified index
+     * @return the removed key
+     */
+    auto nonleaf_inner_remove_at_(std::size_t index)
         -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
@@ -319,6 +370,33 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     leaf_borrow_right_() -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
+     * @brief Take the left neighbour's largest key and the child larger than
+     * that key, use the key as the new separator between this and the left
+     * neighbour, then return the old separator and the child.
+     *
+     * @return A pair whose:
+     * - First value is the old separator
+     * - Second value is the owning pointer to the largest child of the left
+     * node.
+     */
+    [[nodiscard]] auto nonleaf_borrow_left_()
+        -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                     std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+
+    /**
+     * @brief Take the right neighbour's smallest key and the child smaller than
+     * that key, use the key as the new separator between this and the right
+     * neighbour, then return the old separator and the child.
+     *
+     * @return A pair whose:
+     * - First value is the old separator
+     * - Second value is the owning pointer to the smallest child of the right
+     * node.
+     */
+    [[nodiscard]] auto nonleaf_borrow_right_()
+        -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                     std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+    /**
      * @brief Merge this node with its right neighbour
      *
      * Must only be called when this is leaf and both this and
@@ -326,6 +404,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * minimum degree.
      */
     void leaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
+
+    /**
+     * @brief Merge this node with its right neighbour
+     *
+     * Must only be called when this is NOT leaf and both this and
+     * its right neighbour cannot remove any more keys without going below the
+     * minimum degree.
+     */
+    void nonleaf_merge_right_(BTree<K, MIN_DEG>* curr_bt);
 
   public:
     BTreeNode() noexcept = default;
@@ -470,9 +557,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto
-    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
-        const noexcept
+    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
+                                               K, const K&> key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
