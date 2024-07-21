@@ -202,10 +202,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
         -> std::optional<std::pair<const BTreeNode*, std::size_t>>;
 
     /**
-     * @brief (Simply) split the current node into 2, and insert the current
-     * median into the parent.
+     * @brief (Simply) split the current node into 2, and insert the median into
+     * the parent.
      *
      * Should only be called when this node is full.
+     *
+     * In case new_key is the median, new_key is swapped with the key that would
+     * have been the median had new_key not been.
      *
      * In case a new root node is made, curr_bt->root_ is updated.
      *
@@ -732,9 +735,12 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>* curr_bt,
     std::size_t new_node_idx = 0;
     auto new_node = std::make_unique<BTreeNode>(this->parent_);
 
+    // determine the *true* median.
     if (new_key > this->keys_[median_idx + 1]) {
         ++median_idx;
     } else if (new_key > this->keys_[median_idx]) {
+        // the new key is the median.
+        // swap the new key with the old median.
         K temp = std::move(this->keys_[median_idx]);
         this->keys_[median_idx] = std::move(new_key);
         new_key = std::move(temp);
