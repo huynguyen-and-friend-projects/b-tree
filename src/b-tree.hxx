@@ -384,7 +384,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     [[nodiscard]] auto nonleaf_borrow_left_() noexcept
         -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
-                     std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+                     std::unique_ptr<BTreeNode>>;
 
     /**
      * @brief Take the right neighbour's smallest key and the child smaller than
@@ -398,7 +398,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     [[nodiscard]] auto nonleaf_borrow_right_() noexcept
         -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
-                     std::unique_ptr<BTreeNode<K, MIN_DEG>>>;
+                     std::unique_ptr<BTreeNode>>;
     /**
      * @brief Merge this node with its right neighbour
      *
