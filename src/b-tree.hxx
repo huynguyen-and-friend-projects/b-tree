@@ -299,7 +299,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * rebalancing (specifically, merging), the newly merged node is the new
      * root.
      */
-    void nonleaf_rebalance_(BTree<K, MIN_DEG>* curr_bt) noexcept;
+    void nonleaf_rebalance_(BTree<K, MIN_DEG>& curr_bt) noexcept;
 
     /**
      * @brief Remove the specified key out of the inner array.
@@ -331,9 +331,9 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @param key The specified key
      * @return true if the key exists (and is removed), false if the key doesn't
      */
-    auto nonleaf_inner_remove_(
-        std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept
-        -> bool;
+    auto nonleaf_remove_(BTree<K, MIN_DEG>& curr_bt,
+                         std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
+                             key) noexcept -> bool;
 
     /**
      * @brief Remove the key at the specified index out of the inner array.
@@ -341,14 +341,15 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * index must be between 0 and n_keys_
      *
      * The process is different than that of a leaf_inner_remove_at_.
-     * This method finds the largest element down the left subtree of the
+     * This method finds the smallest element down the right subtree of the
      * to-be-removed key, then replace the removed key with that element, and
      * lastly return the removed key.
      *
      * @param index The specified index
      * @return the removed key
      */
-    auto nonleaf_inner_remove_at_(std::size_t index) noexcept
+    auto nonleaf_remove_at_(BTree<K, MIN_DEG>& curr_bt,
+                            std::size_t index) noexcept
         -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
 
     /**
@@ -561,8 +562,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
-                                               K, const K&> key) const noexcept
+    [[nodiscard]] auto
+    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -965,7 +967,8 @@ auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index) noexcept
 }
 
 template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::nonleaf_inner_remove_(
+auto BTreeNode<K, MIN_DEG>::nonleaf_remove_(
+    BTree<K, MIN_DEG>& curr_bt,
     std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
     assert(!is_leaf());
 
