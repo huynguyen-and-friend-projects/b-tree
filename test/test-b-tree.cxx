@@ -114,6 +114,17 @@ TEST(b_tree, leaf_remove) { // NOLINT
 }
 
 TEST(b_tree, nonleaf_remove) { // NOLINT
+    bt::BTree<int, 2> test_tree{};
+    for (int num = 1; num < 30; ++num) { // NOLINT
+        test_tree.insert(num);
+    }
+    // place a breakpoint on this comment to see how the tree is at this stage
+    ASSERT_TRUE(test_tree.remove(3));
+    ASSERT_FALSE(test_tree.contains(3));
+    ASSERT_TRUE(test_tree.remove(12));
+    ASSERT_FALSE(test_tree.contains(12));
+    ASSERT_TRUE(test_tree.remove(18));
+    ASSERT_FALSE(test_tree.contains(18));
 }
 
 TEST(b_tree, copy) {
