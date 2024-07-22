@@ -931,6 +931,57 @@ void BTreeNode<K, MIN_DEG>::leaf_rebalance_(
 }
 
 template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::nonleaf_rebalance_(
+    BTree<K, MIN_DEG>& curr_bt) noexcept {
+    assert(!is_leaf());
+    assert(!is_root());
+    assert(n_keys_ <= MIN_DEG);
+
+    if (has_left_() && get_left_().n_keys_ > MIN_DEG) {
+        std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                  std::unique_ptr<BTreeNode>>
+            borrow = nonleaf_borrow_left_();
+        // make room for new key and child
+        children_[n_children_] = std::move(children_[n_children_ - 1]);
+        children_[n_children_]->index_ = n_children_;
+        for (std::size_t pos = n_keys_; pos > 0; --pos) {
+            // key and child larger than it
+            keys_[pos] = std::move(keys_[pos - 1]);
+            children_[pos] = std::move(children_[pos - 1]);
+            children_[pos]->index_ = pos;
+        }
+
+        keys_[0] = borrow.first;
+        children_[0] = std::move(borrow.second);
+        children_[0]->parent_ = this;
+        children_[0]->index_ = 0;
+
+        ++n_keys_;
+        ++n_children_;
+        return;
+    }
+    if (has_right_() && get_right_().n_keys_ > MIN_DEG) {
+        std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                  std::unique_ptr<BTreeNode>>
+            borrow = nonleaf_borrow_right_();
+
+        keys_[n_keys_] = borrow.first;
+        children_[n_children_] = std::move(borrow.second);
+        children_[n_children_]->parent_ = this;
+        children_[n_children_]->index_ = n_children_;
+
+        ++n_keys_;
+        ++n_children_;
+        return;
+    }
+    if (has_left_()) {
+        get_left_().nonleaf_merge_right_(curr_bt);
+        return;
+    }
+    this->nonleaf_merge_right_(curr_bt);
+}
+
+template <Key K, std::size_t MIN_DEG>
 auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_(
     std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
     assert(is_leaf());
@@ -977,8 +1028,41 @@ auto BTreeNode<K, MIN_DEG>::nonleaf_remove_(
         return false;
     }
 
-    // find and get the largest element of the left subtree
-    BTreeNode* curr_node = children_[pair_result.second].get();
+    // find the smallest element of the right subtree
+    BTreeNode* curr_node = children_[pair_result.second + 1].get();
+    while (!curr_node->is_leaf()) {
+        curr_node = curr_node->children_[0].get();
+    }
+
+    K ret = std::move(this->keys_[pair_result.second]);
+    this->keys_[pair_result.second] =
+        curr_node->leaf_inner_remove_at_(0);
+    if (curr_node->n_keys_ <= MIN_DEG) {
+        curr_node->leaf_rebalance_(curr_bt);
+    }
+    return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+auto BTreeNode<K, MIN_DEG>::nonleaf_remove_at_(BTree<K, MIN_DEG>& curr_bt,
+                                               std::size_t index) noexcept
+    -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> {
+    assert(!is_leaf());
+    assert(index < n_keys_);
+
+    // find the smallest element of the right subtree
+    BTreeNode* curr_node = children_[index + 1].get();
+    while (!curr_node->is_leaf()) {
+        curr_node = curr_node->children_[0].get();
+    }
+
+    K ret = std::move(this->keys_[index]);
+    this->keys_[index] =
+        curr_node->leaf_inner_remove_at_(0);
+    if (curr_node->n_keys_ <= MIN_DEG) {
+        curr_node->leaf_rebalance_(curr_bt);
+    }
+    return ret;
 }
 
 template <Key K, std::size_t MIN_DEG>
@@ -1003,6 +1087,55 @@ template <Key K, std::size_t MIN_DEG>
     parent_->keys_[index_] = right.leaf_inner_remove_at_(0);
 
     return ret;
+}
+
+template <Key K, std::size_t MIN_DEG>
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::nonleaf_borrow_left_() noexcept
+    -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                 std::unique_ptr<BTreeNode>> {
+    assert(!is_leaf());
+    assert(has_left_());
+
+    BTreeNode& left = get_left_();
+    K ret_key = std::move(parent_->keys_[index_ - 1]);
+    parent_->keys_[index_ - 1] = std::move(left.keys_[left.n_keys_ - 1]);
+    --left.n_keys_;
+    std::unique_ptr<BTreeNode> ret_child =
+        std::move(left.children_[left.n_children_ - 1]);
+    --left.n_children_;
+    return std::make_pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                          std::unique_ptr<BTreeNode>>(std::move(ret_key),
+                                                      std::move(ret_child));
+}
+
+template <Key K, std::size_t MIN_DEG>
+[[nodiscard]] auto BTreeNode<K, MIN_DEG>::nonleaf_borrow_right_() noexcept
+    -> std::pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                 std::unique_ptr<BTreeNode>> {
+    assert(!is_leaf());
+    assert(has_right_());
+
+    BTreeNode& right = get_right_();
+    K ret_key = std::move(parent_->keys_[index_]);
+    parent_->keys_[index_] = std::move(right.keys_[0]);
+    std::unique_ptr<BTreeNode> ret_child = std::move(right.children_[0]);
+    // rearrange keys and children
+    for (std::size_t pos = 1; pos < right.n_keys_; ++pos) {
+        // key and the child smaller than it
+        right.keys_[pos - 1] = std::move(right.keys_[pos]);
+        right.children_[pos - 1] = std::move(right.children_[pos]);
+        right.children_[pos - 1]->index_ = pos - 1;
+    }
+    // the largest child
+    right.children_[right.n_children_ - 2] =
+        std::move(right.children_[right.n_children_ - 1]);
+    right.children_[right.n_children_ - 2]->index_ = right.n_children_ - 2;
+    --right.n_keys_;
+    --right.n_children_;
+
+    return std::make_pair<std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>,
+                          std::unique_ptr<BTreeNode>>(std::move(ret_key),
+                                                      std::move(ret_child));
 }
 
 template <Key K, std::size_t MIN_DEG>
@@ -1035,6 +1168,59 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_(
         curr_bt.root_ = std::move(curr_bt.root_->children_[index_]);
         curr_bt.root_->parent_ = nullptr;
         curr_bt.root_->index_ = 0;
+        return;
+    }
+
+    if (!parent_->is_root() && parent_->n_keys_ < MIN_DEG) {
+        parent_->nonleaf_rebalance_(curr_bt);
+    }
+}
+
+template <Key K, std::size_t MIN_DEG>
+void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
+    BTree<K, MIN_DEG>& curr_bt) noexcept {
+    assert(!is_leaf());
+    assert(has_right_());
+    assert(!is_root());
+
+    keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
+    ++n_keys_;
+    std::unique_ptr<BTreeNode> right =
+        std::move(parent_->children_[index_ + 1]);
+    // rearrange parent's keys and children
+    for (std::size_t pos = this->index_; pos < parent_->n_keys_ - 1; ++pos) {
+        parent_->keys_[pos] = std::move(parent_->keys_[pos + 1]);
+        parent_->children_[pos + 1] = std::move(parent_->children_[pos + 2]);
+        parent_->children_[pos + 1]->index_ = pos + 1;
+    }
+    --parent_->n_keys_;
+    --parent_->n_children_;
+
+    this->children_[this->n_children_] = std::move(right->children_[0]);
+    this->children_[this->n_children_]->parent_ = this;
+    this->children_[this->n_children_]->index_ = this->n_children_;
+    ++this->n_children_;
+    std::size_t max_pos = right->n_keys_ - 1;
+    std::size_t curr_pos = this->n_keys_;
+    for (std::size_t pos = 0; pos <= max_pos; ++pos) {
+        this->keys_[curr_pos] = std::move(right->keys_[pos]);
+        this->children_[curr_pos + 1] = std::move(right->children_[pos + 1]);
+        this->children_[curr_pos + 1]->parent_ = this;
+        this->children_[curr_pos + 1]->index_ = curr_pos + 1;
+        ++this->n_keys_;
+        ++this->n_children_;
+        ++curr_pos;
+    }
+
+    if (parent_->is_root() && parent_->n_keys_ == 0) {
+        curr_bt.root_ = std::move(curr_bt.root_->children_[index_]);
+        curr_bt.root_->parent_ = nullptr;
+        curr_bt.root_->index_ = 0;
+        return;
+    }
+
+    if (!parent_->is_root() && parent_->n_keys_ < MIN_DEG) {
+        parent_->nonleaf_rebalance_(curr_bt);
     }
 }
 
@@ -1071,7 +1257,8 @@ auto BTree<K, MIN_DEG>::remove(
         if (pair_result.first) {
             // TODO: change this after a non-leaf remove method has been
             // implemented
-            return false;
+            curr_node->nonleaf_remove_at_(*this, pair_result.second);
+            return true;
         }
         curr_node = curr_node->children_[pair_result.second + 1].get();
         pair_result = curr_node->inner_key_find_(key);
