@@ -140,7 +140,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - Second value (long long):
      *   - If key is found, is the index of that key inside the array.
      *   - Else, is the index of the key just smaller than the specified key.
-     *      - So, -1 if the key is smaller than every element and MAX_KEYS_ - 1
+     *      - So, -1 if the key is smaller than every element and n_keys_ - 1
      * when the key is larger than every element.
      */
     [[nodiscard]] auto
@@ -657,7 +657,8 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
     std::size_t median_idx = (n_keys_ - 1) / 2;
     std::size_t max_idx = n_keys_ - 1;
     std::size_t new_node_idx = 0;
-    auto new_node = std::make_unique<BTreeNode>(this->parent_);
+    auto new_node = std::make_unique<BTreeNode>();
+    new_node->parent_ = this->parent_;
 
     // determine the *true* median.
     if (new_key > this->keys_[median_idx + 1]) {
@@ -868,7 +869,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_rebalance_(
         children_[n_children_] = std::move(children_[n_children_ - 1]);
         children_[n_children_]->index_ = n_children_;
         for (std::size_t pos = n_keys_; pos > 0; --pos) {
-            // key and child larger than it
+            // key and child smaller than it
             keys_[pos] = std::move(keys_[pos - 1]);
             children_[pos] = std::move(children_[pos - 1]);
             children_[pos]->index_ = pos;
@@ -877,7 +878,6 @@ void BTreeNode<K, MIN_DEG>::nonleaf_rebalance_(
         keys_[0] = borrow.first;
         children_[0] = std::move(borrow.second);
         children_[0]->set_parent_(this, 0);
-        children_[0]->index_ = 0;
 
         ++n_keys_;
         ++n_children_;
