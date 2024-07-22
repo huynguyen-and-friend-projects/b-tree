@@ -12,6 +12,7 @@ option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
 option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
 option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
+option(ENABLE_FUZZ "Compile with libFuzzer" OFF)
 
 # configure accordingly to options
 if(ENABLE_CCACHE)
@@ -67,9 +68,15 @@ endif()
 
 if(ENABLE_ASAN)
     if(MSVC)
-        target_compile_options(b-tree-compile-opts INTERFACE "/fsanitize=address;/Oy")
+        target_compile_options(b-tree-compile-opts
+                               INTERFACE "/fsanitize=address;/Oy")
     else(MSVC)
         target_compile_options(
-            b-tree-compile-opts INTERFACE "-fsanitize=address;-fno-omit-frame-pointer")
+            b-tree-compile-opts
+            INTERFACE "-fsanitize=address;-fno-omit-frame-pointer")
     endif()
+endif()
+
+if(ENABLE_FUZZ)
+    add_subdirectory(fuzz)
 endif()
