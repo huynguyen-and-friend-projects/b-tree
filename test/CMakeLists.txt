@@ -19,7 +19,7 @@ endif()
 include(GoogleTest)
 
 add_executable(test-exe test-b-tree.cxx)
-target_link_libraries(test-exe PRIVATE b-tree compile-opts GTest::gtest_main)
+target_link_libraries(test-exe PRIVATE b-tree b-tree-compile-opts GTest::gtest_main)
 if(ENABLE_PCH)
     target_precompile_headers(test-exe PRIVATE <gtest/gtest.h>)
 endif()

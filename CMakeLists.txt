@@ -12,12 +12,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # enforce standards on all compiled pieces
-add_library(compile-opts INTERFACE)
-target_compile_features(compile-opts INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
+add_library(b-tree-compile-opts INTERFACE)
+target_compile_features(b-tree-compile-opts INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 if(MSVC)
-    target_compile_options(compile-opts INTERFACE "/Za")
+    target_compile_options(b-tree-compile-opts INTERFACE "/Za")
 else(MSVC)
-    target_compile_options(compile-opts INTERFACE "-pedantic")
+    target_compile_options(b-tree-compile-opts INTERFACE "-pedantic")
 endif()
 
 include(Options.cmake)
