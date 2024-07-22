@@ -1,7 +1,3 @@
-/**
- * @file b-tree.hxx
- */
-
 #ifndef B_TREE_PROTO_H
 #define B_TREE_PROTO_H
 
@@ -18,22 +14,11 @@
 
 namespace my_b_tree {
 
-/**
- * @brief Key concept.
- *
- * Requires to be equality-comparable and movable.
- */
 template <typename T>
 concept Key = std::equality_comparable<T> && std::movable<T>;
 
-/**
- * @brief A BTree.
- */
 template <Key K, std::size_t MIN_DEG> class BTree;
 
-/**
- * @brief The node of the BTree
- */
 template <Key K, std::size_t MIN_DEG> class BTreeNode {
   private:
     static_assert(MIN_DEG > 0, "Error, MIN_DEG must be larger than 0");
@@ -46,13 +31,11 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     /**
      * @brief Same as BTree<K, MIN_DEG>::MAX_KEYS
-     * 2 * MIN_DEG
      */
     static constexpr std::size_t MAX_KEYS_ = 2 * MIN_DEG;
 
     /**
      * @brief Same as BTree<K, MIN_DEG>::MAX_CHILDREN
-     * (2 * MIN_DEG) + 1
      */
     static constexpr std::size_t MAX_CHILDREN_ = MAX_KEYS_ + 1;
 
@@ -94,18 +77,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     std::size_t index_{0};
 
     friend class BTree<K, MIN_DEG>;
-
-    /**
-     * Return the technical minimum degree of the current node.
-     *
-     * This should only be used when the difference between root's
-     * minimum degree and others' is important.
-     *
-     * @return 1 if root, MIN_DEG otherwise
-     */
-    [[nodiscard]] auto minimum_deg_() const noexcept -> std::size_t {
-        return (is_root()) ? 1 : MIN_DEG;
-    }
 
     /**
      * @return Whether this node has a left neighbour
@@ -161,17 +132,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     }
 
     /**
-     * Sets index with bound-checking.
-     *
-     * index must be between 0 and MAX_CHILDREN_
-     */
-    void set_index_(std::size_t index) noexcept {
-        // in case you don't listen
-        assert(index > 0 && index < MAX_CHILDREN_);
-        index_ = index;
-    }
-
-    /**
      * @brief Finds the specified key inside this array.
      *
      * @param key The specified key
@@ -180,7 +140,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - Second value (long long):
      *   - If key is found, is the index of that key inside the array.
      *   - Else, is the index of the key just smaller than the specified key.
-     *      - So, -1 if the key is smaller than every element and max_keys()
+     *      - So, -1 if the key is smaller than every element and MAX_KEYS_
      * when the key is larger than every element.
      */
     [[nodiscard]] auto
@@ -280,7 +240,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Either borrow from left or right, or merge.
      *
-     * Must only be called when n_keys_ <= minimum_deg_(),
+     * Must only be called when n_keys_ <= MIN_DEG,
      * which also means this node should not be root.
      *
      * In case this node's parent is root and the root just reaches 0 key after
@@ -292,7 +252,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Either borrow from left or right, or merge.
      *
-     * Must only be called when n_keys_ <= minimum_deg_(),
+     * Must only be called when n_keys_ <= MIN_DEG,
      * which also means this node should not be root.
      *
      * In case this node's parent is root and the root just reaches 0 key after
@@ -320,20 +280,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     auto leaf_inner_remove_at_(std::size_t index) noexcept
         -> std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&>;
-
-    /**
-     * @brief Remove the specified key out of the inner array.
-     *
-     * The process is different than that of a leaf_inner_remove_.
-     * This method finds the largest element down the left subtree of the
-     * to-be-removed key, then overwrite the removed key with that element.
-     *
-     * @param key The specified key
-     * @return true if the key exists (and is removed), false if the key doesn't
-     */
-    auto nonleaf_remove_(BTree<K, MIN_DEG>& curr_bt,
-                         std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&>
-                             key) noexcept -> bool;
 
     /**
      * @brief Remove the key at the specified index out of the inner array.
@@ -445,33 +391,11 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     ~BTreeNode() noexcept = default;
 
-    [[nodiscard]] auto keys_count() const noexcept -> std::size_t {
-        return n_keys_;
-    }
-
-    [[nodiscard]] auto children_count() const noexcept -> std::size_t {
-        return n_children_;
-    }
-
     /**
      * @return Whether this node has no child.
      */
     [[nodiscard]] auto is_leaf() const noexcept -> bool {
         return n_children_ == 0;
-    }
-
-    /**
-     * This is just an alternative to BTree::MAX_KEYS
-     */
-    [[nodiscard]] auto max_keys() const noexcept -> std::size_t {
-        return MAX_KEYS_;
-    }
-
-    /**
-     * This is just an alternative to BTree::MAX_CHILDREN
-     */
-    [[nodiscard]] auto max_children() const noexcept -> std::size_t {
-        return MAX_CHILDREN_;
     }
 
     /**
@@ -895,7 +819,7 @@ auto BTreeNode<K, MIN_DEG>::leaf_remove_(
         return false;
     }
 
-    if (n_keys_ >= minimum_deg_() || is_root()) {
+    if (n_keys_ >= MIN_DEG || is_root()) {
         return true;
     }
 
@@ -918,7 +842,7 @@ void BTreeNode<K, MIN_DEG>::leaf_rebalance_(
         ++n_keys_;
         return;
     }
-    if (has_right_() && get_right_().n_keys_ > minimum_deg_()) {
+    if (has_right_() && get_right_().n_keys_ > MIN_DEG) {
         keys_[n_keys_] = leaf_borrow_right_();
         ++n_keys_;
         return;
@@ -953,7 +877,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_rebalance_(
 
         keys_[0] = borrow.first;
         children_[0] = std::move(borrow.second);
-        children_[0]->parent_ = this;
+        children_[0]->set_parent_(this, 0);
         children_[0]->index_ = 0;
 
         ++n_keys_;
@@ -967,8 +891,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_rebalance_(
 
         keys_[n_keys_] = borrow.first;
         children_[n_children_] = std::move(borrow.second);
-        children_[n_children_]->parent_ = this;
-        children_[n_children_]->index_ = n_children_;
+        children_[n_children_]->set_parent_(this, n_children_);
 
         ++n_keys_;
         ++n_children_;
@@ -1014,32 +937,6 @@ auto BTreeNode<K, MIN_DEG>::leaf_inner_remove_at_(std::size_t index) noexcept
     }
 
     --n_keys_;
-    return ret;
-}
-
-template <Key K, std::size_t MIN_DEG>
-auto BTreeNode<K, MIN_DEG>::nonleaf_remove_(
-    BTree<K, MIN_DEG>& curr_bt,
-    std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) noexcept -> bool {
-    assert(!is_leaf());
-
-    std::pair<bool, std::size_t> pair_result = inner_key_find_(key);
-    if (!pair_result.first) {
-        return false;
-    }
-
-    // find the smallest element of the right subtree
-    BTreeNode* curr_node = children_[pair_result.second + 1].get();
-    while (!curr_node->is_leaf()) {
-        curr_node = curr_node->children_[0].get();
-    }
-
-    K ret = std::move(this->keys_[pair_result.second]);
-    this->keys_[pair_result.second] =
-        curr_node->leaf_inner_remove_at_(0);
-    if (curr_node->n_keys_ <= MIN_DEG) {
-        curr_node->leaf_rebalance_(curr_bt);
-    }
     return ret;
 }
 
@@ -1197,7 +1094,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
     --parent_->n_children_;
 
     this->children_[this->n_children_] = std::move(right->children_[0]);
-    this->children_[this->n_children_]->parent_ = this;
+    this->children_[this->n_children_]->set_parent_(this, this->n_children_);
     this->children_[this->n_children_]->index_ = this->n_children_;
     ++this->n_children_;
     std::size_t max_pos = right->n_keys_ - 1;
@@ -1205,8 +1102,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
     for (std::size_t pos = 0; pos <= max_pos; ++pos) {
         this->keys_[curr_pos] = std::move(right->keys_[pos]);
         this->children_[curr_pos + 1] = std::move(right->children_[pos + 1]);
-        this->children_[curr_pos + 1]->parent_ = this;
-        this->children_[curr_pos + 1]->index_ = curr_pos + 1;
+        this->children_[curr_pos + 1]->set_parent_(this, curr_pos + 1);
         ++this->n_keys_;
         ++this->n_children_;
         ++curr_pos;

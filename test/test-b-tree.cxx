@@ -10,11 +10,6 @@ namespace bt = my_b_tree;
 TEST(b_tree, obvious) {
     ASSERT_TRUE(std::movable<int>);
     const bt::BTree<int, 1> test_tree{};
-    const bt::BTreeNode<int, 1>* root = test_tree.get_root();
-
-    ASSERT_EQ(root->children_count(), 0);
-    ASSERT_EQ(root->max_keys(), 2);
-    ASSERT_EQ(root->max_children(), 3);
 
     ASSERT_FALSE(test_tree.find(2).has_value());
     ASSERT_FALSE(test_tree.contains(69420));
