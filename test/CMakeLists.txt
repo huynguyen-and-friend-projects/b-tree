@@ -29,9 +29,9 @@ if(ENABLE_ASAN)
     target_link_libraries(test-exe PRIVATE asan)
 endif()
 gtest_discover_tests(test-exe)
-add_custom_command(
-    TARGET test-exe
-    POST_BUILD
-    COMMAND ${CMAKE_CTEST_COMMAND}
-    USES_TERMINAL
-    COMMENT "Run tests after compilation")
+# add_custom_command(
+#     TARGET test-exe
+#     POST_BUILD
+#     COMMAND ${CMAKE_CTEST_COMMAND}
+#     USES_TERMINAL
+#     COMMENT "Run tests after compilation")
