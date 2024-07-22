@@ -1255,8 +1255,6 @@ auto BTree<K, MIN_DEG>::remove(
     std::pair<bool, std::size_t> pair_result = curr_node->inner_key_find_(key);
     while (!curr_node->is_leaf()) {
         if (pair_result.first) {
-            // TODO: change this after a non-leaf remove method has been
-            // implemented
             curr_node->nonleaf_remove_at_(*this, pair_result.second);
             return true;
         }
