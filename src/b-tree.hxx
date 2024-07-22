@@ -140,7 +140,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * - Second value (long long):
      *   - If key is found, is the index of that key inside the array.
      *   - Else, is the index of the key just smaller than the specified key.
-     *      - So, -1 if the key is smaller than every element and MAX_KEYS_
+     *      - So, -1 if the key is smaller than every element and MAX_KEYS_ - 1
      * when the key is larger than every element.
      */
     [[nodiscard]] auto
@@ -486,9 +486,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto
-    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
-        const noexcept
+    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
+                                               K, const K&> key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -954,8 +953,7 @@ auto BTreeNode<K, MIN_DEG>::nonleaf_remove_at_(BTree<K, MIN_DEG>& curr_bt,
     }
 
     K ret = std::move(this->keys_[index]);
-    this->keys_[index] =
-        curr_node->leaf_inner_remove_at_(0);
+    this->keys_[index] = curr_node->leaf_inner_remove_at_(0);
     if (curr_node->n_keys_ <= MIN_DEG) {
         curr_node->leaf_rebalance_(curr_bt);
     }
