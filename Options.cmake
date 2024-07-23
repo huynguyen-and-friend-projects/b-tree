@@ -13,6 +13,9 @@ option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
 option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
 option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
+option(ENABLE_UBSAN "Compile with UndefinedBehaviorSanitizer" OFF)
+option(ENABLE_MSAN "Compile with MemorySanitizer" OFF)
+option(ENABLE_COVERAGE "Compile with coverage flag" OFF)
 option(ENABLE_FUZZ "Compile with libFuzzer" OFF)
 option(
     BTREE_CLANGD_COMPAT
@@ -88,6 +91,43 @@ if(ENABLE_ASAN)
             b-tree-compile-opts
             INTERFACE "-fsanitize=address;-fno-omit-frame-pointer")
         target_link_options(b-tree-compile-opts INTERFACE "-fsanitize=address")
+    endif()
+endif()
+
+if(ENABLE_UBSAN)
+    if(MSVC)
+        message(
+            "We don't know if there's this option on MSVC :(. Currently disabling it."
+        )
+    else(MSVC)
+        target_compile_options(b-tree-compile-opts
+                               INTERFACE "-fsanitize=undefined")
+        target_link_options(b-tree-compile-opts INTERFACE
+                            "-fsanitize=undefined")
+    endif()
+endif()
+
+if(ENABLE_MSAN)
+    if(MSVC)
+        message(
+            "We don't know if there's this option on MSVC :(. Currently disabling it."
+        )
+    else(MSVC)
+        target_compile_options(
+            b-tree-compile-opts
+            INTERFACE
+                "-fsanitize=memory;-fno-omit-frame-pointer;-fno-optimize-sibling-call"
+        )
+        target_link_options(b-tree-compile-opts INTERFACE "-fsanitize=memory")
+    endif()
+endif()
+
+if(ENABLE_COVERAGE)
+    if(MSVC)
+        target_compile_options("/fsanitize-coverage=edge")
+    else(MSVC)
+        target_compile_options(b-tree-compile-opts INTERFACE "--coverage")
+        target_link_options(b-tree-compile-opts INTERFACE "--coverage")
     endif()
 endif()
 
