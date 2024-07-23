@@ -8,6 +8,7 @@ if(ENABLE_PCH)
     target_precompile_headers(
         b-tree
         INTERFACE
+        b-tree.hxx
         <array>
         <cassert>
         <climits>
