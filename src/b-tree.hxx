@@ -679,7 +679,6 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
             ++new_node_idx;
         }
     } else {
-        assert(this->children_[median_idx + 1].get() != nullptr);
         new_node->inner_insert_child_at_(
             std::move(this->children_[median_idx + 1]), 0);
         --this->n_children_;
@@ -691,7 +690,6 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
             new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
             ++new_node->n_keys_;
 
-            assert(this->children_[this_idx + 1].get() != nullptr);
             new_node->inner_insert_child_at_(
                 std::move(this->children_[this_idx + 1]), new_node_idx + 1);
 
@@ -730,7 +728,6 @@ void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
 
     for (long long idx = n_children_ - 1;
          idx > static_cast<long long>(index) - 1; --idx) {
-        assert(this->children_[idx] != nullptr);
         this->children_[idx + 1] = std::move(this->children_[idx]);
         this->children_[idx + 1]->index_ = idx + 1;
     }
@@ -1133,7 +1130,6 @@ auto BTree<K, MIN_DEG>::insert(
             return false;
         }
         curr_node = curr_node->children_[pair_result.second + 1].get();
-        assert(curr_node != nullptr);
         pair_result = curr_node->inner_key_find_(key);
     }
     if (pair_result.first) {
@@ -1158,7 +1154,6 @@ auto BTree<K, MIN_DEG>::remove(
             return true;
         }
         curr_node = curr_node->children_[pair_result.second + 1].get();
-        assert(curr_node != nullptr);
         pair_result = curr_node->inner_key_find_(key);
     }
     if (!pair_result.first) {
