@@ -163,9 +163,11 @@ TEST(b_tree, move) {
 TEST(b_tree, insert_nontrival_copy) {
     bt::BTree<std::string, 4> test_tree{};
     ASSERT_FALSE(std::is_trivially_copyable_v<std::string>);
+    ASSERT_TRUE(std::is_trivially_copyable_v<const char*>);
     std::string sus = "Never gonna give you up";
     test_tree.insert_copy(sus); // NOLINT
-    test_tree.insert("Never gonna let you down");
+    test_tree.insert(
+        "Never gonna let you down"); // this should be a const char*
     ASSERT_TRUE(test_tree.contains("Never gonna give you up"));
     ASSERT_STREQ(sus.c_str(), "Never gonna give you up");
     ASSERT_FALSE(test_tree.insert(std::move(sus)));       // NOLINT
