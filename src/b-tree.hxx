@@ -15,7 +15,7 @@
 namespace my_b_tree {
 
 template <typename T>
-concept Key = std::equality_comparable<T> && std::movable<T>;
+concept Key = requires { std::equality_comparable<T>&& std::movable<T>; };
 
 template <Key K, std::size_t MIN_DEG> class BTree;
 
@@ -154,12 +154,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return An optional pair:
      * - std::nullopt is key not found.
      * - A pair if found:
-     *   - First value is the pointer to the node containing the specified key.
+     *   - First value is the reference to the node containing the specified
+     * key.
      *   - Second value is the index of that key.
      */
     [[nodiscard]] auto
     find_(std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
-        -> std::optional<std::pair<const BTreeNode*, std::size_t>>;
+        -> std::optional<std::pair<const BTreeNode&, std::size_t>>;
 
     /**
      * @brief (Simply) split the current node into 2, and insert the median into
@@ -488,7 +489,7 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      */
     [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
                                                K, const K&> key) const noexcept
-        -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>*, std::size_t>> {
+        -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>&, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
             return std::nullopt;
@@ -636,11 +637,11 @@ auto BTreeNode<K, MIN_DEG>::inner_key_find_(
 template <Key K, std::size_t MIN_DEG>
 auto BTreeNode<K, MIN_DEG>::find_(
     std::conditional_t<CAN_TRIVIAL_COPY_, K, const K&> key) const noexcept
-    -> std::optional<std::pair<const BTreeNode*, std::size_t>> {
+    -> std::optional<std::pair<const BTreeNode&, std::size_t>> {
     auto pair_result = inner_key_find_(key);
     // found the key
     if (pair_result.first) {
-        return std::make_pair(this, pair_result.second);
+        return std::make_pair(*this, pair_result.second);
     }
     if (is_leaf()) {
         return std::nullopt;
@@ -651,14 +652,12 @@ auto BTreeNode<K, MIN_DEG>::find_(
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
                                          K& new_key) {
-    // in case you don't listen.
     assert(is_full());
 
     std::size_t median_idx = (n_keys_ - 1) / 2;
     std::size_t max_idx = n_keys_ - 1;
     std::size_t new_node_idx = 0;
     auto new_node = std::make_unique<BTreeNode>();
-    new_node->parent_ = this->parent_;
 
     // determine the *true* median.
     if (new_key > this->keys_[median_idx + 1]) {
@@ -680,6 +679,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
             ++new_node_idx;
         }
     } else {
+        assert(this->children_[median_idx + 1].get() != nullptr);
         new_node->inner_insert_child_at_(
             std::move(this->children_[median_idx + 1]), 0);
         --this->n_children_;
@@ -691,6 +691,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
             new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
             ++new_node->n_keys_;
 
+            assert(this->children_[this_idx + 1].get() != nullptr);
             new_node->inner_insert_child_at_(
                 std::move(this->children_[this_idx + 1]), new_node_idx + 1);
 
@@ -729,6 +730,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
 
     for (long long idx = n_children_ - 1;
          idx > static_cast<long long>(index) - 1; --idx) {
+        assert(this->children_[idx] != nullptr);
         this->children_[idx + 1] = std::move(this->children_[idx]);
         this->children_[idx + 1]->index_ = idx + 1;
     }
@@ -766,7 +768,7 @@ void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
         return;
     }
 
-    for (long long idx = n_keys_ - 1; idx > static_cast<long long>(index - 1);
+    for (long long idx = n_keys_ - 1; idx > static_cast<long long>(index) - 1;
          --idx) {
         this->keys_[idx + 1] = std::move(this->keys_[idx]);
     }
@@ -954,7 +956,7 @@ auto BTreeNode<K, MIN_DEG>::nonleaf_remove_at_(BTree<K, MIN_DEG>& curr_bt,
 
     K ret = std::move(this->keys_[index]);
     this->keys_[index] = curr_node->leaf_inner_remove_at_(0);
-    if (curr_node->n_keys_ <= MIN_DEG) {
+    if (curr_node->n_keys_ < MIN_DEG) {
         curr_node->leaf_rebalance_(curr_bt);
     }
     return ret;
@@ -1043,7 +1045,8 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_(
     std::unique_ptr<BTreeNode> right =
         std::move(parent_->children_[index_ + 1]);
     // rearrange parent's keys (and children)
-    for (std::size_t pos = this->index_; pos < parent_->n_keys_ - 1; ++pos) {
+    std::size_t parent_max_pos = parent_->n_keys_ - 1;
+    for (std::size_t pos = this->index_; pos < parent_max_pos; ++pos) {
         parent_->keys_[pos] = std::move(parent_->keys_[pos + 1]);
         parent_->children_[pos + 1] = std::move(parent_->children_[pos + 2]);
         parent_->children_[pos + 1]->index_ = pos + 1;
@@ -1060,7 +1063,7 @@ void BTreeNode<K, MIN_DEG>::leaf_merge_right_(
     }
 
     if (parent_->is_root() && parent_->n_keys_ == 0) {
-        curr_bt.root_ = std::move(curr_bt.root_->children_[index_]);
+        curr_bt.root_ = std::move(parent_->children_[index_]);
         curr_bt.root_->parent_ = nullptr;
         curr_bt.root_->index_ = 0;
         return;
@@ -1076,6 +1079,7 @@ void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
     BTree<K, MIN_DEG>& curr_bt) noexcept {
     assert(!is_leaf());
     assert(has_right_());
+    assert(get_right_().n_keys_ <= MIN_DEG);
     assert(!is_root());
 
     keys_[n_keys_] = std::move(parent_->keys_[this->index_]);
@@ -1083,7 +1087,8 @@ void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
     std::unique_ptr<BTreeNode> right =
         std::move(parent_->children_[index_ + 1]);
     // rearrange parent's keys and children
-    for (std::size_t pos = this->index_; pos < parent_->n_keys_ - 1; ++pos) {
+    std::size_t parent_max_pos = parent_->n_keys_ - 1;
+    for (std::size_t pos = this->index_; pos < parent_max_pos; ++pos) {
         parent_->keys_[pos] = std::move(parent_->keys_[pos + 1]);
         parent_->children_[pos + 1] = std::move(parent_->children_[pos + 2]);
         parent_->children_[pos + 1]->index_ = pos + 1;
@@ -1093,7 +1098,6 @@ void BTreeNode<K, MIN_DEG>::nonleaf_merge_right_(
 
     this->children_[this->n_children_] = std::move(right->children_[0]);
     this->children_[this->n_children_]->set_parent_(this, this->n_children_);
-    this->children_[this->n_children_]->index_ = this->n_children_;
     ++this->n_children_;
     std::size_t max_pos = right->n_keys_ - 1;
     std::size_t curr_pos = this->n_keys_;
@@ -1129,6 +1133,7 @@ auto BTree<K, MIN_DEG>::insert(
             return false;
         }
         curr_node = curr_node->children_[pair_result.second + 1].get();
+        assert(curr_node != nullptr);
         pair_result = curr_node->inner_key_find_(key);
     }
     if (pair_result.first) {
@@ -1153,6 +1158,7 @@ auto BTree<K, MIN_DEG>::remove(
             return true;
         }
         curr_node = curr_node->children_[pair_result.second + 1].get();
+        assert(curr_node != nullptr);
         pair_result = curr_node->inner_key_find_(key);
     }
     if (!pair_result.first) {

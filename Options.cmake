@@ -7,12 +7,17 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
 
 option(USE_CCACHE "Use ccache" OFF)
 option(USE_LLD "Use lld instead of ld for linking" OFF)
+option(USE_LIBCXX "Use libcxx instead of stdlibcxx" OFF)
 option(ENABLE_PCH "Enable precompiled header" ON)
 option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
 option(WARNING_AS_ERROR "Change compiler warnings to errors" ON)
 option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
 option(ENABLE_FUZZ "Compile with libFuzzer" OFF)
+option(
+    BTREE_CLANGD_COMPAT
+    "Enable supposedly unnecessary compile flags for the b-tree target, mainly so that clangd doesn't throw a bunch of false positives"
+    OFF)
 
 # configure accordingly to options
 if(ENABLE_CCACHE)
@@ -45,6 +50,14 @@ if(USE_LLD)
     set(CMAKE_LINKER lld)
 endif()
 
+if(USE_LIBCXX)
+    if(NOT MSVC)
+        target_compile_options(b-tree-compile-opts INTERFACE "-stdlib=libc++")
+        target_link_options(b-tree-compile-opts INTERFACE
+                            "-stdlib=libc++;-lc++abi")
+    endif()
+endif()
+
 if(ENABLE_TESTING)
     add_subdirectory(test)
 endif()
@@ -74,6 +87,7 @@ if(ENABLE_ASAN)
         target_compile_options(
             b-tree-compile-opts
             INTERFACE "-fsanitize=address;-fno-omit-frame-pointer")
+        target_link_options(b-tree-compile-opts INTERFACE "-fsanitize=address")
     endif()
 endif()
 

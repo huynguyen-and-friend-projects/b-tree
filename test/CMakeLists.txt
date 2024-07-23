@@ -23,9 +23,4 @@ target_link_libraries(test-exe PRIVATE b-tree b-tree-compile-opts GTest::gtest_m
 if(ENABLE_PCH)
     target_precompile_headers(test-exe PRIVATE <gtest/gtest.h>)
 endif()
-if(ENABLE_ASAN)
-    # I think this is discouraged by the devs, but it wouldn't run without this
-    # option.
-    target_link_libraries(test-exe PRIVATE asan)
-endif()
 gtest_discover_tests(test-exe)

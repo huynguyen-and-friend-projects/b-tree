@@ -80,20 +80,20 @@ TEST(b_tree, leaf_remove) { // NOLINT
     }
     // current tree:
     //   [3         6]
-    //    
+    //
     // [1 2] [4 5]  [7 8 9 10]
     ASSERT_TRUE(test_tree.remove(1));
     ASSERT_FALSE(test_tree.find(1).has_value());
     // current tree:
     //  [   6       ]
-    //  
+    //
     // [2 3 4 5]    [7 8 9 10]
     ASSERT_TRUE(test_tree.remove(3));
     ASSERT_TRUE(test_tree.remove(7));
     ASSERT_TRUE(test_tree.remove(2));
     // current tree:
     //  [   6       ]
-    //  
+    //
     // [4 5]    [8 9 10]
     ASSERT_FALSE(test_tree.find(3).has_value());
     ASSERT_FALSE(test_tree.find(2).has_value());
@@ -101,7 +101,7 @@ TEST(b_tree, leaf_remove) { // NOLINT
     ASSERT_TRUE(test_tree.remove(4));
     // current tree:
     //  [   8     ]
-    //  
+    //
     // [5 6]    [9 10]
     ASSERT_TRUE(test_tree.remove(9));
     // current tree:
@@ -118,8 +118,20 @@ TEST(b_tree, nonleaf_remove) { // NOLINT
     ASSERT_FALSE(test_tree.contains(3));
     ASSERT_TRUE(test_tree.remove(12));
     ASSERT_FALSE(test_tree.contains(12));
+
     ASSERT_TRUE(test_tree.remove(18));
     ASSERT_FALSE(test_tree.contains(18));
+    ASSERT_TRUE(test_tree.remove(16));
+    ASSERT_FALSE(test_tree.contains(16));
+
+    ASSERT_TRUE(test_tree.remove(6));
+    ASSERT_FALSE(test_tree.contains(6));
+
+    ASSERT_TRUE(test_tree.remove(9));
+    ASSERT_FALSE(test_tree.contains(9));
+
+    ASSERT_TRUE(test_tree.remove(5));
+    ASSERT_FALSE(test_tree.contains(5));
 }
 
 TEST(b_tree, copy) {
