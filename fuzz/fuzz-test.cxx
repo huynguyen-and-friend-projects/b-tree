@@ -11,8 +11,8 @@ static std::mutex g_ir; // NOLINT
 static bt::BTree<int, 4> test_tree{}; // NOLINT
 
 namespace {
-void btree_remove(const uint8_t* data,
-                  std::size_t size) {
+void btree_remove(const uint8_t* data, std::size_t size) {
+    const std::lock_guard<std::mutex> lock(g_ir);
     for (std::size_t offset = 0; offset < size; offset += sizeof(int)) {
         if (offset + 4 >= size - 1) {
             return;
