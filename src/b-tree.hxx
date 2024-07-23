@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -368,13 +367,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
   public:
     BTreeNode() noexcept = default;
-
-    explicit BTreeNode(BTreeNode* parent) : parent_(parent) {
-        if (parent == this) {
-            throw std::invalid_argument(
-                "Expected parent pointer to NOT be the same as this");
-        }
-    }
 
     BTreeNode(BTreeNode&&) noexcept = default;
 
@@ -1159,7 +1151,7 @@ auto BTree<K, MIN_DEG>::remove(
     if (!pair_result.first) {
         return false;
     }
-    curr_node->leaf_remove_(*this, key);
+    curr_node->leaf_remove_(*this, std::forward<K>(key));
     return true;
 }
 } // namespace my_b_tree
