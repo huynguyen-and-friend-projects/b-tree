@@ -2,6 +2,8 @@ add_library(b-tree INTERFACE)
 target_include_directories(b-tree INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 if(BTREE_CLANGD_COMPAT)
     target_link_libraries(b-tree INTERFACE b-tree-compile-opts)
+else()
+    target_compile_features(b-tree INTERFACE cxx_std_20)
 endif()
 
 if(ENABLE_PCH)

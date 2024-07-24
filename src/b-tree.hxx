@@ -41,7 +41,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Keys array.
      */
-    std::array<K, MAX_KEYS_> keys_{};
+    std::array<K, MAX_KEYS_ + 1> keys_{};
 
     /**
      * @brief Number of keys.
@@ -51,7 +51,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     /**
      * @brief Children array.
      */
-    std::array<std::unique_ptr<BTreeNode>, MAX_CHILDREN_> children_{};
+    std::array<std::unique_ptr<BTreeNode>, MAX_CHILDREN_ + 1> children_{};
 
     /**
      * @brief Number of children.
@@ -76,6 +76,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     std::size_t index_{0};
 
     friend class BTree<K, MIN_DEG>;
+
+    /**
+     * @return Whether a split is needed
+     */
+    [[nodiscard]] auto need_split_() const noexcept -> bool {
+        return n_keys_ > MAX_KEYS_;
+    }
 
     /**
      * @return Whether this node has a left neighbour
@@ -174,9 +181,13 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      *
      * @param curr_bt
      */
-    void inner_split_(BTree<K, MIN_DEG>& curr_bt, K& new_key);
+    void inner_split_(BTree<K, MIN_DEG>& curr_bt);
     /**
      * @brief Inserts the specified child at the specified index.
+     *
+     * This won't trigger a split when the number of children surpasses
+     * the maximum number of children. As such, after this method, a check
+     * whether to split is needed.
      *
      * Must satisfy the following conditions:
      * 1. This node's children array is not full
@@ -395,7 +406,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * @return Whether this node's key array is fully occupied.
      */
     [[nodiscard]] auto is_full() const noexcept -> bool {
-        return n_keys_ == keys_.size();
+        return n_keys_ == MAX_KEYS_;
     }
 
     /**
@@ -479,8 +490,9 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
-                                               K, const K&> key) const noexcept
+    [[nodiscard]] auto
+    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
+        const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>&, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -641,82 +653,83 @@ auto BTreeNode<K, MIN_DEG>::find_(
     return children_[pair_result.second + 1]->find_(key);
 }
 
+// TODO: finish inner_split_
+
 template <Key K, std::size_t MIN_DEG>
-void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt,
-                                         K& new_key) {
-    assert(is_full());
+void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
+    assert(need_split_());
 
-    std::size_t median_idx = (n_keys_ - 1) / 2;
-    std::size_t max_idx = n_keys_ - 1;
-    std::size_t new_node_idx = 0;
-    auto new_node = std::make_unique<BTreeNode>();
+    std::unique_ptr<BTreeNode> new_node = std::make_unique<BTreeNode>();
+    std::size_t median_idx = (this->keys_.size()) / 2;
 
-    // determine the *true* median.
-    if (new_key > this->keys_[median_idx + 1]) {
-        ++median_idx;
-    } else if (new_key > this->keys_[median_idx]) {
-        // the new key is the median.
-        // swap the new key with the old median.
-        K temp = std::move(this->keys_[median_idx]);
-        this->keys_[median_idx] = std::move(new_key);
-        new_key = std::move(temp);
+    // move keys greater than median
+    for (std::size_t pos = median_idx + 1; pos < keys_.size(); ++pos) {
+        new_node->keys_[new_node->n_keys_++] = std::move(this->keys_[pos]);
+        --this->n_keys_;
     }
 
-    if (is_leaf()) {
-        for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
-             ++this_idx) {
-            new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
-            ++new_node->n_keys_;
-            --this->n_keys_;
-            ++new_node_idx;
-        }
-    } else {
-        new_node->inner_insert_child_at_(
-            std::move(this->children_[median_idx + 1]), 0);
-        --this->n_children_;
-
-        // move keys larger than the median and the children just larger than
-        // each of those key to the new node.
-        for (std::size_t this_idx = median_idx + 1; this_idx <= max_idx;
-             ++this_idx) {
-            new_node->keys_[new_node_idx] = std::move(this->keys_[this_idx]);
-            ++new_node->n_keys_;
-
-            new_node->inner_insert_child_at_(
-                std::move(this->children_[this_idx + 1]), new_node_idx + 1);
-
-            --this->n_keys_;
+    if (!this->is_leaf()) {
+        // move children right of median
+        for (std::size_t pos = median_idx + 1; pos < children_.size(); ++pos) {
+            new_node->children_[new_node->n_children_] =
+                std::move(this->children_[pos]);
+            new_node->children_[new_node->n_children_]->index_ =
+                new_node->n_children_;
+            new_node->children_[new_node->n_children_]->parent_ =
+                new_node.get();
+            ++new_node->n_children_;
             --this->n_children_;
-            ++new_node_idx;
         }
     }
 
-    if (this->parent_ != nullptr) {
-        // this is not root.
-        this->parent_->inner_insert_key_at_(
-            curr_bt, std::move(this->keys_[median_idx]), this->index_);
-        --this->n_keys_;
-        this->parent_->inner_insert_child_at_(std::move(new_node),
-                                              this->index_ + 1);
-    } else {
-        // this is root
+    K median_key = std::move(keys_[median_idx]);
+    if (this->is_root()) {
+        // create new root
         auto new_root = std::make_unique<BTreeNode>();
-        new_root->inner_insert_key_at_(curr_bt,
-                                       std::move(this->keys_[median_idx]), 0);
+
+        new_root->keys_[0] = std::move(median_key);
         --this->n_keys_;
-        // curr_bt->root_ is essentially an unique_ptr to this
-        new_root->inner_insert_child_at_(std::move(curr_bt.root_), 0);
-        new_root->inner_insert_child_at_(std::move(new_node), 1);
+        // curr_bt->root_ is the owning pointer of this
+        new_root->children_[0] = std::move(curr_bt.root_);
+        new_root->children_[0]->parent_ = new_root.get();
+        new_root->children_[0]->index_ = 0;
+
+        new_root->children_[1] = std::move(new_node);
+        new_root->children_[1]->parent_ = new_root.get();
+        new_root->children_[1]->index_ = 1;
+
+        new_root->n_keys_ = 1;
+        new_root->n_children_ = 2;
+
         curr_bt.root_ = std::move(new_root);
+    } else {
+        // make room for median key and new node
+        for (std::size_t pos = parent_->n_keys_; pos > this->index_; --pos) {
+            parent_->keys_[pos] = std::move(parent_->keys_[pos - 1]);
+            ++parent_->children_[pos]->index_;
+            parent_->children_[pos + 1] = std::move(parent_->children_[pos]);
+        }
+
+        parent_->keys_[this->index_] = std::move(median_key);
+        --this->n_keys_;
+        ++parent_->n_keys_;
+        new_node->index_ = this->index_ + 1;
+        new_node->parent_ = parent_;
+        parent_->children_[this->index_ + 1] = std::move(new_node);
+        ++parent_->n_children_;
+
+        if (parent_->need_split_()) {
+            parent_->inner_split_(curr_bt);
+        }
     }
 }
 
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_child_at_(
     std::unique_ptr<BTreeNode>&& child, std::size_t index) {
-    assert(n_children_ < MAX_CHILDREN_);
+    assert(n_children_ <= MAX_CHILDREN_);
     assert(child.get() != nullptr);
-    assert(index < MAX_CHILDREN_);
+    assert(index <= MAX_CHILDREN_);
 
     for (long long idx = n_children_ - 1;
          idx > static_cast<long long>(index) - 1; --idx) {
@@ -732,72 +745,35 @@ template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_key_at_(
     BTree<K, MIN_DEG>& curr_bt,
     std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key, std::size_t index) {
-    assert(is_full() ? index <= MAX_KEYS_ : index < MAX_KEYS_);
-
-    bool is_split = false;
-    K insert_key = std::move(key);
-    if (is_full()) {
-        this->inner_split_(curr_bt, insert_key);
-        is_split = true;
+    for (std::size_t idx = n_keys_; idx > index; --idx) {
+        keys_[idx] = std::move(keys_[idx - 1]);
     }
 
-    // after splitting, parent is not nullptr
-    // parent_->keys_[this->index_] points to the key just larger than this
-    // node.
-    // Also, in no situation shall key == [any key in parent's key array]
-    if (is_split) {
-        if (insert_key > this->parent_->keys_[this->index_]) {
-            // insert into the new node instead.
-            // HACK: new node is assumed to be this node's right neighbour
-            this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(insert_key));
-            return;
-        }
-        this->inner_insert_(curr_bt, std::move(insert_key));
-        return;
-    }
+    keys_[index] = std::move(key);
+    ++n_keys_;
 
-    for (long long idx = n_keys_ - 1; idx > static_cast<long long>(index) - 1;
-         --idx) {
-        this->keys_[idx + 1] = std::move(this->keys_[idx]);
+    if (need_split_()) {
+        inner_split_(curr_bt);
     }
-    this->keys_[index] = std::move(insert_key);
-    ++this->n_keys_;
 }
+
+// TODO: finish inner_insert_
 
 template <Key K, std::size_t MIN_DEG>
 void BTreeNode<K, MIN_DEG>::inner_insert_(
     BTree<K, MIN_DEG>& curr_bt,
     std::conditional_t<CAN_TRIVIAL_COPY_, K, K&&> key) {
-    bool is_split = false;
-    K insert_key = std::move(key);
-    if (is_full()) {
-        this->inner_split_(curr_bt, insert_key);
-        is_split = true;
-    }
+    auto insert_idx = static_cast<std::size_t>(inner_key_find_(key).second + 1);
 
-    // after splitting, parent is not nullptr
-    // parent_->keys_[this->index_] points to the key just larger than this
-    // node.
-    // Also, in no situation shall key == [any key in parent's key array]
-    if (is_split) {
-        if (insert_key > this->parent_->keys_[this->index_]) {
-            // insert into the new node instead.
-            // HACK: new node is assumed to be this node's right neighbour
-            this->parent_->children_[this->index_ + 1]->inner_insert_(
-                curr_bt, std::move(insert_key));
-            return;
-        }
-        this->inner_insert_(curr_bt, std::move(insert_key));
-        return;
+    for (std::size_t idx = n_keys_; idx > insert_idx; --idx) {
+        keys_[idx] = std::move(keys_[idx - 1]);
     }
-    long long insert_idx = inner_key_find_(insert_key).second + 1;
-
-    for (long long idx = n_keys_ - 1; idx > insert_idx - 1; --idx) {
-        keys_[idx + 1] = std::move(keys_[idx]);
-    }
-    keys_[insert_idx] = std::move(insert_key);
+    keys_[insert_idx] = std::move(key);
     ++this->n_keys_;
+
+    if (need_split_()) {
+        inner_split_(curr_bt);
+    }
 }
 
 template <Key K, std::size_t MIN_DEG>
