@@ -40,18 +40,31 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
 
     /**
      * @brief Keys array.
+     *
+     * The extra 1 slot is for the intermediary stage when the node needs
+     * splitting.
      */
     std::array<K, MAX_KEYS_ + 1> keys_{};
+
+    /**
+     * @brief Children array.
+     *
+     * The extra 1 slot is for the intermediary stage when the node needs
+     * splitting.
+     */
+    std::array<std::unique_ptr<BTreeNode>, MAX_CHILDREN_ + 1> children_{};
+
+    /**
+     * @brief Non-owning pointer to parent
+     *
+     * NOTE: parent_ == nullptr when node is root.
+     */
+    BTreeNode* parent_{nullptr};
 
     /**
      * @brief Number of keys.
      */
     std::size_t n_keys_{0};
-
-    /**
-     * @brief Children array.
-     */
-    std::array<std::unique_ptr<BTreeNode>, MAX_CHILDREN_ + 1> children_{};
 
     /**
      * @brief Number of children.
@@ -60,13 +73,6 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      * a node), n_children_ != n_keys_ + 1.
      */
     std::size_t n_children_{0};
-
-    /**
-     * @brief Non-owning pointer to parent
-     *
-     * NOTE: parent_ == nullptr when node is root.
-     */
-    BTreeNode* parent_{nullptr};
 
     /**
      * @brief This node's position inside parent's children pointer array
@@ -131,7 +137,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
     void set_parent_(BTreeNode* parent, std::size_t index) noexcept {
         // in case you don't listen
         assert(parent != this);
-        assert(index < MAX_CHILDREN_);
+        assert(index <= MAX_CHILDREN_);
 
         index_ = index;
         parent_ = parent;
@@ -490,9 +496,8 @@ template <Key K, std::size_t MIN_DEG> class BTree {
      * @return std::nullopt if no node contains the value, a pointer to the node
      * containing the value otherwise.
      */
-    [[nodiscard]] auto
-    find(std::conditional_t<std::is_trivially_copyable_v<K>, K, const K&> key)
-        const noexcept
+    [[nodiscard]] auto find(std::conditional_t<std::is_trivially_copyable_v<K>,
+                                               K, const K&> key) const noexcept
         -> std::optional<std::pair<const BTreeNode<K, MIN_DEG>&, std::size_t>> {
         auto pair_result = root_->find_(key);
         if (!pair_result.has_value()) {
@@ -673,10 +678,8 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
         for (std::size_t pos = median_idx + 1; pos < children_.size(); ++pos) {
             new_node->children_[new_node->n_children_] =
                 std::move(this->children_[pos]);
-            new_node->children_[new_node->n_children_]->index_ =
-                new_node->n_children_;
-            new_node->children_[new_node->n_children_]->parent_ =
-                new_node.get();
+            new_node->children_[new_node->n_children_]->set_parent_(
+                new_node.get(), new_node->n_children_);
             ++new_node->n_children_;
             --this->n_children_;
         }
@@ -691,12 +694,10 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
         --this->n_keys_;
         // curr_bt->root_ is the owning pointer of this
         new_root->children_[0] = std::move(curr_bt.root_);
-        new_root->children_[0]->parent_ = new_root.get();
-        new_root->children_[0]->index_ = 0;
+        new_root->children_[0]->set_parent_(new_root.get(), 0);
 
         new_root->children_[1] = std::move(new_node);
-        new_root->children_[1]->parent_ = new_root.get();
-        new_root->children_[1]->index_ = 1;
+        new_root->children_[1]->set_parent_(new_root.get(), 1);
 
         new_root->n_keys_ = 1;
         new_root->n_children_ = 2;
@@ -713,9 +714,9 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
         parent_->keys_[this->index_] = std::move(median_key);
         --this->n_keys_;
         ++parent_->n_keys_;
-        new_node->index_ = this->index_ + 1;
-        new_node->parent_ = parent_;
         parent_->children_[this->index_ + 1] = std::move(new_node);
+        parent_->children_[this->index_ + 1]->set_parent_(parent_,
+                                                          this->index_ + 1);
         ++parent_->n_children_;
 
         if (parent_->need_split_()) {
