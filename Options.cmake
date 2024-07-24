@@ -16,7 +16,7 @@ option(ENABLE_ASAN "Compile with AddressSanitizer" OFF)
 option(ENABLE_UBSAN "Compile with UndefinedBehaviorSanitizer" OFF)
 option(ENABLE_MSAN "Compile with MemorySanitizer" OFF)
 option(ENABLE_COVERAGE "Compile with coverage flag" OFF)
-option(ENABLE_FUZZ "Compile with libFuzzer" OFF)
+option(ENABLE_FUZZ "Enable fuzz testing. Currently only working with clang" OFF)
 option(
     BTREE_CLANGD_COMPAT
     "Enable supposedly unnecessary compile flags for the b-tree target, mainly so that clangd doesn't throw a bunch of false positives"
@@ -62,7 +62,7 @@ if(USE_LIBCXX)
 endif()
 
 if(ENABLE_TESTING)
-    add_subdirectory(test)
+    add_subdirectory(unittest)
 endif()
 if(ENABLE_WARNING)
     if(MSVC)
@@ -70,7 +70,9 @@ if(ENABLE_WARNING)
     else(MSVC)
         target_compile_options(
             b-tree-compile-opts
-            INTERFACE "-Wall;-Wextra;-Wformat=2;-fdiagnostics-color=always")
+            INTERFACE
+                "-Wall;-Wextra;-Wformat=2;-fdiagnostics-color=always;-Wshadow;-Wconversion"
+        )
     endif()
 endif()
 
@@ -108,15 +110,15 @@ if(ENABLE_UBSAN)
 endif()
 
 if(ENABLE_MSAN)
-    if(MSVC)
+    if("${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" STREQUAL "MSVC")
         message(
             "We don't know if there's this option on MSVC :(. Currently disabling it."
         )
-    else(MSVC)
+    else()
         target_compile_options(
             b-tree-compile-opts
             INTERFACE
-                "-fsanitize=memory;-fno-omit-frame-pointer;-fno-optimize-sibling-call"
+                "-fsanitize=memory;-fno-omit-frame-pointer;-fno-optimize-sibling-calls"
         )
         target_link_options(b-tree-compile-opts INTERFACE "-fsanitize=memory")
     endif()
@@ -132,5 +134,11 @@ if(ENABLE_COVERAGE)
 endif()
 
 if(ENABLE_FUZZ)
-    add_subdirectory(fuzz)
+    if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        message(
+            "Note that gcc/g++ won't work with libFuzzer. This is a LLVM-only tool."
+        )
+    else()
+        add_subdirectory(fuzztest)
+    endif()
 endif()
