@@ -1,6 +1,5 @@
----
-Checks:          '*,-abseil-*,-altera-*,-android-*,-darwin-*,-fuchsia-*,-google-*,-linuxkernel-*,-llvm*,-zircon-*,-misc-no-recursion'
-WarningsAsErrors: '*'
+Checks: "*,-abseil-*,-altera-*,-android-*,-darwin-*,-fuchsia-*,-google-*,-linuxkernel-*,-llvm*,-zircon-*,-misc-no-recursion"
+WarningsAsErrors: "*"
 HeaderFileExtensions:
   - h
   - hh
@@ -11,6 +10,5 @@ ImplementationFileExtensions:
   - cc
   - cpp
   - cxx
-HeaderFilterRegex: ''
-FormatStyle:     none
-
+HeaderFilterRegex: ""
+FormatStyle: none
