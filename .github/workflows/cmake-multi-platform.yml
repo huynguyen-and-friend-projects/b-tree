@@ -4,9 +4,9 @@ name: CMake on multiple platforms
 
 on:
   push:
-    branches: [ "rewrite-again" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "rewrite-again" ]
+    branches: [ "**" ]
 
 jobs:
   build:
