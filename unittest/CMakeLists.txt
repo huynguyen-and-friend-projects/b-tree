@@ -20,7 +20,4 @@ include(GoogleTest)
 
 add_executable(b-tree-unit-test test-b-tree.cxx)
 target_link_libraries(b-tree-unit-test PRIVATE b-tree b-tree-compile-opts GTest::gtest_main)
-if(ENABLE_PCH)
-    target_precompile_headers(b-tree-unit-test PRIVATE [["gtest/gtest.h"]])
-endif()
 gtest_discover_tests(b-tree-unit-test)
