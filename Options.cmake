@@ -1,4 +1,4 @@
-# if build type is not yet set
+# if build type is not set yet
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message("No build type is configured! Default to Debug")
     set(CMAKE_BUILD_TYPE
