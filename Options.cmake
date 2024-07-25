@@ -30,6 +30,12 @@ option(
     "Enable supposedly unnecessary compile flags for the b-tree target, mainly so that clangd doesn't throw a bunch of false positives"
     OFF)
 
+if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    mark_as_advanced(FORCE ENABLE_OPTIMIZATION)
+else()
+    mark_as_advanced(CLEAR ENABLE_OPTIMIZATION)
+endif()
+
 # configure accordingly to options
 if(ENABLE_CCACHE)
     find_program(CCACHE ccache)
