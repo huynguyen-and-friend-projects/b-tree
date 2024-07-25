@@ -1,9 +1,14 @@
-# build type
-set(CMAKE_BUILD_TYPE
-    Debug
-    CACHE STRING "Choose a build type" FORCE)
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-                                             "MinSizeRel" "RelWithDebInfo")
+# if build type is not yet set
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message("No build type is configured! Default to Debug")
+    set(CMAKE_BUILD_TYPE
+        "Debug"
+        CACHE STRING
+              "Choose a build type (Debug, Release, MinSizeRel, RelWithDebInfo)"
+              FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE
+                 PROPERTY STRINGS "Debug;Release;MinSizeRel;RelWithDebInfo")
+endif()
 
 option(USE_CCACHE "Use ccache" OFF)
 option(USE_LLD "Use lld instead of ld for linking" OFF)
