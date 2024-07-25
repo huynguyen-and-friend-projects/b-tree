@@ -13,6 +13,9 @@ endif()
 option(USE_CCACHE "Use ccache" OFF)
 option(USE_LLD "Use lld instead of ld for linking" OFF)
 option(USE_LIBCXX "Use libcxx instead of stdlibcxx" OFF)
+option(ENABLE_OPTIMIZATION
+       "Add some optimization flags. Maybe useful only when build type is Debug"
+       ON)
 option(ENABLE_PCH "Enable precompiled header" ON)
 option(ENABLE_TESTING "Enable Google test" ON)
 option(ENABLE_WARNING "Enable compiler warnings" ON)
@@ -39,7 +42,13 @@ if(ENABLE_CCACHE)
     endif()
 endif()
 
-if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
+if(ENABLE_OPTIMIZATION)
+    if(MSVC)
+        target_compile_options(b-tree-compile-opts INTERFACE "/Zo")
+    else(MSVC)
+        target_compile_options(b-tree-compile-opts INTERFACE "-Og")
+    endif()
+else()
     if(MSVC)
         target_compile_options(b-tree-compile-opts INTERFACE "/Od")
     else(MSVC)
@@ -91,8 +100,11 @@ endif()
 
 if(ENABLE_ASAN)
     if(MSVC)
-        target_compile_options(b-tree-compile-opts
-                               INTERFACE "/fsanitize=address;/Oy")
+        target_compile_options(
+            b-tree-compile-opts
+            INTERFACE
+                "/fsanitize=address;/D_DISABLE_VECTOR_ANNOTATION;/D_DISABLE_STRING_ANNOTATION"
+        )
     else(MSVC)
         target_compile_options(
             b-tree-compile-opts
@@ -104,7 +116,7 @@ endif()
 if(ENABLE_UBSAN)
     if(MSVC)
         message(
-            "We don't know if there's this option on MSVC :(. Currently disabling it."
+            "We don't know if there's UBSan support on MSVC :(. Currently disabling it."
         )
     else(MSVC)
         target_compile_options(b-tree-compile-opts
@@ -117,7 +129,7 @@ endif()
 if(ENABLE_MSAN)
     if("${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" STREQUAL "MSVC")
         message(
-            "We don't know if there's this option on MSVC :(. Currently disabling it."
+            "We don't know if there's MSan support on MSVC :(. Currently disabling it."
         )
     else()
         target_compile_options(
@@ -139,7 +151,7 @@ if(ENABLE_COVERAGE)
 endif()
 
 if(ENABLE_FUZZ)
-    if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         message(
             "Note that gcc/g++ won't work with libFuzzer. This is a LLVM-only tool."
         )
