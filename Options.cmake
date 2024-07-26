@@ -162,13 +162,13 @@ if(ENABLE_COVERAGE)
     if(MSVC)
         target_compile_options("/fsanitize-coverage=edge")
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(smoldb-compile-opts INTERFACE "--coverage")
-        target_link_options(smoldb-compile-opts INTERFACE "--coverage")
+        target_compile_options(b-tree-compile-opts INTERFACE "--coverage")
+        target_link_options(b-tree-compile-opts INTERFACE "--coverage")
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         target_compile_options(
-            smoldb-compile-opts
+            b-tree-compile-opts
             INTERFACE "-fprofile-instr-generate;-fcoverage-mapping")
-        target_link_options(smoldb-compile-opts INTERFACE
+        target_link_options(b-tree-compile-opts INTERFACE
                             "-fprofile-instr-generate;-fcoverage-mapping")
     endif()
 endif()
