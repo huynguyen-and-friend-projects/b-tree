@@ -54,6 +54,7 @@ template <Key K, std::size_t MIN_DEG> class BTreeNode {
      */
     std::array<std::unique_ptr<BTreeNode>, MAX_CHILDREN_ + 1> children_{};
 
+    static constexpr std::size_t MEDIAN_KEY_IDX = (MAX_KEYS_ + 1) / 2;
     /**
      * @brief Non-owning pointer to parent
      *
@@ -666,17 +667,16 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
     assert(need_split_());
 
     std::unique_ptr<BTreeNode> new_node = std::make_unique<BTreeNode>();
-    std::size_t median_idx = (this->keys_.size()) / 2;
 
     // move keys greater than median
-    for (std::size_t pos = median_idx + 1; pos < keys_.size(); ++pos) {
+    for (std::size_t pos = MEDIAN_KEY_IDX + 1; pos < keys_.size(); ++pos) {
         new_node->keys_[new_node->n_keys_++] = std::move(this->keys_[pos]);
         --this->n_keys_;
     }
 
     if (!this->is_leaf()) {
         // move children right of median
-        for (std::size_t pos = median_idx + 1; pos < children_.size(); ++pos) {
+        for (std::size_t pos = MEDIAN_KEY_IDX + 1; pos < children_.size(); ++pos) {
             new_node->children_[new_node->n_children_] =
                 std::move(this->children_[pos]);
             new_node->children_[new_node->n_children_]->set_parent_(
@@ -686,7 +686,7 @@ void BTreeNode<K, MIN_DEG>::inner_split_(BTree<K, MIN_DEG>& curr_bt) {
         }
     }
 
-    K median_key = std::move(keys_[median_idx]);
+    K median_key = std::move(keys_[MEDIAN_KEY_IDX]);
     if (this->is_root()) {
         // create new root
         auto new_root = std::make_unique<BTreeNode>();
