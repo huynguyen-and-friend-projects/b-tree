@@ -18,6 +18,6 @@ set(gtest_force_shared_crt
     CACHE BOOL "" FORCE)
 
 add_executable(b-tree-unit-test test-b-tree.cxx)
-target_link_libraries(b-tree-unit-test PRIVATE b-tree b-tree-compile-opts
+target_link_libraries(b-tree-unit-test PRIVATE b-tree btree_compile_opts
                                                GTest::gtest_main)
 gtest_discover_tests(b-tree-unit-test)

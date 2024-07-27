@@ -18,18 +18,18 @@ if(NOT CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 # enforce standards on all compiled pieces
-add_library(b-tree-compile-opts INTERFACE)
+add_library(btree_compile_opts INTERFACE)
 if(NOT CMAKE_CXX_STANDARD)
-    target_compile_features(b-tree-compile-opts INTERFACE cxx_std_23)
+    target_compile_features(btree_compile_opts INTERFACE cxx_std_23)
 else()
-    target_compile_features(b-tree-compile-opts
+    target_compile_features(btree_compile_opts
                             INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 endif()
 
 if(MSVC)
-    target_compile_options(b-tree-compile-opts INTERFACE "/Za")
+    target_compile_options(btree_compile_opts INTERFACE "/Za")
 else(MSVC)
-    target_compile_options(b-tree-compile-opts INTERFACE "-pedantic")
+    target_compile_options(btree_compile_opts INTERFACE "-pedantic")
 endif()
 
 include(Options.cmake)
