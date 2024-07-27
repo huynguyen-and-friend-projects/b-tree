@@ -22,7 +22,6 @@ void btree_remove() {
 
 void btree_insert(const uint8_t* data, std::size_t size) {
     for (std::size_t offset = 0; offset < size; ++offset) {
-        // HACK: int assumed to be 4 bytes here
         const int key =
             static_cast<int>(*std::next(data, static_cast<long>(offset)));
         data_vec.push_back(key);
