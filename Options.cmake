@@ -13,7 +13,7 @@ endif()
 option(btree_USE_CCACHE "Use ccache" OFF)
 option(btree_USE_LLD "Use lld instead of ld for linking" OFF)
 option(btree_USE_LIBCXX "Use libcxx instead of stdlibcxx" OFF)
-option(btree_btree_ENABLE_OPTIMIZATION
+option(btree_ENABLE_OPTIMIZATION
        "Add some optimization flags. Maybe useful only when build type is Debug"
        ON)
 option(btree_ENABLE_PCH "Enable precompiled header" ON)
@@ -30,6 +30,20 @@ option(
     btree_CLANGD_COMPAT
     "Enable supposedly unnecessary compile flags for the b-tree target, mainly so that clangd doesn't throw a bunch of false positives"
     OFF)
+
+if(NOT PROJECT_IS_TOP_LEVEL)
+    mark_as_advanced(btree_USE_CCACHE
+        btree_USE_LLD
+        btree_USE_LIBCXX
+        btree_ENABLE_OPTIMIZATION
+        btree_ENABLE_PCH
+        btree_ENABLE_TESTING
+        btree_ENABLE_ASAN
+        btree_ENABLE_UBSAN
+        btree_ENABLE_MSAN
+        btree_ENABLE_COVERAGE
+        btree_ENABLE_FUZZ)
+endif()
 
 if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     mark_as_advanced(FORCE btree_ENABLE_OPTIMIZATION)
