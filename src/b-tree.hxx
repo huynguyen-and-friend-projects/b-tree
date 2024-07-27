@@ -622,13 +622,13 @@ auto BTreeNode<K, MIN_DEG>::inner_key_find_(
     -> std::pair<bool, long long> {
 
     long long left = 0;
-    long long right = n_keys_ - 1;
+    long long right = static_cast<long long>(n_keys_) - 1;
     long long mid = (left + right) / 2;
     while (left <= right) {
-        if (keys_[mid] == key) {
+        if (keys_[static_cast<std::size_t>(mid)] == key) {
             return {true, mid};
         }
-        if (keys_[mid] < key) {
+        if (keys_[static_cast<std::size_t>(mid)] < key) {
             left = mid + 1;
         } else {
             right = mid - 1;
@@ -655,7 +655,8 @@ auto BTreeNode<K, MIN_DEG>::find_(
     if (is_leaf()) {
         return std::nullopt;
     }
-    return children_[pair_result.second + 1]->find_(key);
+    return children_[static_cast<std::size_t>(pair_result.second + 1)]->find_(
+        key);
 }
 
 // TODO: finish inner_split_
